@@ -1,0 +1,35 @@
+name: Update map
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'   # every Monday 05:00 UTC
+  workflow_dispatch:        # manual trigger from GitHub UI
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install requests
+
+      - run: python vdd_scrape.py
+
+      - run: python vdd_map.py
+
+      - run: cp vdd_map.html index.html
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add vdd_events.db index.html vdd_map.html
+          git diff --cached --quiet || git commit -m "chore: auto-update map $(date -u +%Y-%m-%d)"
+          git push
