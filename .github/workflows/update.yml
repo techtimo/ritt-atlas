@@ -22,9 +22,12 @@ jobs:
 
       - run: python vdd_scrape.py
 
-      - run: python vdd_map.py
-
-      - run: cp vdd_map.html index.html
+      - name: Rebuild map if DB changed
+        run: |
+          if ! git diff --quiet vdd_events.db; then
+            python vdd_map.py
+            cp vdd_map.html index.html
+          fi
 
       - name: Commit & push if changed
         run: |
