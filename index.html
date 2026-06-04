@@ -3,19 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VDD Rittatlas 2026</title>
+<title>VDD Rittatlas</title>
+<link rel="icon" href="https://vdd-aktuell.de/favicon.ico">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700;800&display=swap"/>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; font-family: system-ui, sans-serif; font-size: 13px; color: #222; background: #f5f5f5; }
+html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px; color: #333; background: #f3f3f3; }
 
 /* ── top bar ── */
 #header { background: #9D3230; color: #fff; padding: 10px 14px; flex-shrink: 0; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-#header h1 { font-size: 16px; font-weight: 600; }
-#scraped-at { font-size: 11px; opacity: .7; }
-#vorrat-toggle { font-size: 12px; margin-left: auto; display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; white-space: nowrap; }
-#vorrat-toggle input { cursor: pointer; width: 14px; height: 14px; accent-color: #ffcdd2; }
+#header h1, #scraped-at { flex-shrink: 0; }
+#header h1 { font-size: 16px; font-weight: 600; white-space: nowrap; }
+#scraped-at { font-size: 11px; opacity: .7; white-space: nowrap; }
+#toggle-group { margin-left: auto; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+#vorrat-toggle, #vergangene-toggle { font-size: 12px; display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; white-space: nowrap; }
+#vorrat-toggle input, #vergangene-toggle input { cursor: pointer; width: 14px; height: 14px; accent-color: #ffcdd2; }
 
 /* ── main split ── */
 #app { display: flex; flex-direction: column; height: 100vh; }
@@ -30,12 +34,16 @@ html, body { height: 100%; font-family: system-ui, sans-serif; font-size: 13px; 
 
 @media (max-width: 860px) {
   #split { flex-direction: column; min-height: 0; }
-  #left-pane { width: 100%; border-right: none; border-bottom: 2px solid #ccc; order: 2; }
-  #right-pane { order: 1; width: 100%; height: 240px; min-height: 200px; }
-  #map { position: relative; inset: auto; height: 100%; }
+  #left-pane { width: 100%; border-right: none; border-bottom: 2px solid #ccc; order: 2; flex: 1 1 65%; min-height: 0; overflow: hidden; }
+  #right-pane { order: 1; width: 100%; flex: 0 0 40%; min-height: 120px; position: relative; }
+  #map { position: absolute; inset: 0; }
   #controls { flex-wrap: wrap; }
-  #search { flex: 1 1 40%; min-width: 40%; }
+  #search { flex: 1 1 40%; min-width: 35%; }
   #loc-controls { flex: 1; justify-content: flex-start; }
+
+  /* fullscreen modal for mobile popups */
+  .leaflet-popup { display: none; }
+  .leaflet-popup.mobile-modal { display: flex; }
 }
 
 /* ── search bar ── */
@@ -47,7 +55,7 @@ html, body { height: 100%; font-family: system-ui, sans-serif; font-size: 13px; 
 #grid { flex: 1; min-height: 0; overflow: hidden; }
 
 /* ── Tabulator overrides ── */
-.tabulator { border: none !important; font-size: 12px; font-family: system-ui, sans-serif; }
+.tabulator { border: none !important; font-size: 12px; font-family: 'Open Sans', sans-serif; }
 .tabulator .tabulator-header { background: #eaeaea; border-bottom: 2px solid #bbb !important; }
 .tabulator .tabulator-header .tabulator-col { background: #eaeaea !important; border-right: 1px solid #d0d0d0 !important; }
 .tabulator .tabulator-header .tabulator-col-title { font-size: 11px; font-weight: 600; }
@@ -60,8 +68,8 @@ html, body { height: 100%; font-family: system-ui, sans-serif; font-size: 13px; 
 .tabulator .tabulator-row.row-active .tabulator-cell { background: #ffe082 !important; }
 .tabulator .tabulator-frozen { box-shadow: 2px 0 4px -2px rgba(0,0,0,.15) !important; }
 
-.tbl-doc { display: inline-block; padding: 2px 6px; background: #1565c0; color: #fff; border-radius: 3px; font-size: 10px; text-decoration: none; white-space: nowrap; }
-.tbl-doc:hover { background: #0d47a1; }
+.tbl-doc { display: inline-block; padding: 2px 6px; background: #2ea3f2; color: #fff; border-radius: 3px; font-size: 10px; text-decoration: none; white-space: nowrap; }
+.tbl-doc:hover { background: #1a8fd1; }
 .tbl-doc.updated::after { content: " *"; }
 
 .status-fest  { color: #2e7d32; font-weight: 600; }
@@ -75,10 +83,10 @@ html, body { height: 100%; font-family: system-ui, sans-serif; font-size: 13px; 
 .popup-row   { margin: 2px 0; font-size: 12px; }
 .popup-label { color: #777; }
 .popup-docs  { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px; }
-.popup-doc   { display: inline-block; padding: 3px 8px; background: #1565c0; color: #fff !important; border-radius: 3px; font-size: 11px; text-decoration: none !important; font-weight: 600; }
-.popup-doc:hover { background: #0d47a1; color: #fff !important; }
+.popup-doc   { display: inline-block; padding: 3px 8px; background: #2ea3f2; color: #fff !important; border-radius: 3px; font-size: 11px; text-decoration: none !important; font-weight: 600; }
+.popup-doc:hover { background: #1a8fd1; color: #fff !important; }
 .popup-doc.updated::after { content: " \2605"; opacity: .9; }
-.popup-link  { display: inline-block; margin-top: 8px; font-size: 11px; color: #1565c0; }
+.popup-link  { display: inline-block; margin-top: 8px; font-size: 11px; color: #2ea3f2; }
 
 /* ── filter bar ── */
 #filter-bar { display: flex; gap: 10px; align-items: center; padding: 5px 10px; background: #f0f0f0; border-bottom: 1px solid #ddd; flex-shrink: 0; flex-wrap: wrap; }
@@ -88,19 +96,32 @@ html, body { height: 100%; font-family: system-ui, sans-serif; font-size: 13px; 
 .toggle-row { display: flex; gap: 3px; flex-wrap: wrap; }
 .tog { padding: 2px 7px; border: 1px solid #ccc; border-radius: 3px; background: #fff; font-size: 11px; cursor: pointer; color: #555; }
 .tog:hover { background: #e8f0fe; border-color: #aaa; }
-.tog.active { background: #1565c0; color: #fff; border-color: #1565c0; }
+.tog.active { background: #2ea3f2; color: #fff; border-color: #2ea3f2; }
 #btn-clear-filters { padding: 2px 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 11px; cursor: pointer; color: #666; margin-left: auto; display: none; }
 #btn-clear-filters:hover { background: #fee; color: #c00; border-color: #fcc; }
 
 /* ── location / radius ── */
 #loc-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-#btn-locate { padding: 4px 9px; border: 1px solid #bbb; border-radius: 4px; background: #fff; font-size: 12px; cursor: pointer; white-space: nowrap; line-height: 1.4; }
+#btn-locate { padding: 4px 9px; border: 1px solid #bbb; border-radius: 4px; background: #fff; font-size: 12px; cursor: pointer; white-space: nowrap; line-height: 1.4; min-width: 96px; text-align: center; }
 #btn-locate:hover { background: #e8f0fe; }
-#btn-locate.active { background: #1565c0; color: #fff; border-color: #1565c0; }
-#radius-input { width: 62px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; text-align: right; }
-#radius-label { font-size: 12px; color: #555; white-space: nowrap; }
-#btn-clear-loc { padding: 2px 7px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 11px; cursor: pointer; color: #666; display: none; line-height: 1.6; }
-#btn-clear-loc:hover { background: #fee; color: #c00; border-color: #fcc; }
+#btn-locate.active { background: #2ea3f2; color: #fff; border-color: #2ea3f2; }
+#btn-locate.active:hover { background: #d32f2f; border-color: #d32f2f; }
+#radius-slider { width: 100px; accent-color: #2ea3f2; cursor: pointer; }
+#radius-label { font-size: 12px; color: #555; white-space: nowrap; min-width: 52px; }
+
+/* ── mobile popup modal ── */
+#popup-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 10000; align-items: center; justify-content: center; }
+#popup-modal.show { display: flex; }
+#popup-modal-content { background: #fff; border-radius: 8px; padding: 0; max-width: 90vw; max-height: 90vh; overflow: auto; box-shadow: 0 4px 20px rgba(0,0,0,.3); width: 100%; }
+#popup-modal-header { background: #9D3230; color: #fff; padding: 12px 16px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#popup-modal-title { flex: 1; }
+#popup-modal-close { background: transparent; color: #fff; border: none; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; width: 32px; height: 32px; flex-shrink: 0; }
+#popup-modal-close:hover { opacity: .7; }
+#popup-modal-body { padding: 16px; }
+
+@media (max-width: 860px) {
+  #popup-modal-content { max-height: 80vh; }
+}
 </style>
 </head>
 <body>
@@ -109,9 +130,10 @@ html, body { height: 100%; font-family: system-ui, sans-serif; font-size: 13px; 
   <div id="header">
     <h1>VDD Rittatlas 2026</h1>
     <span id="scraped-at"></span>
-    <label id="vorrat-toggle">
-      <input type="checkbox" id="show-vorrat"> Rittvorrat anzeigen
-    </label>
+    <div id="toggle-group">
+      <label id="vorrat-toggle"><input type="checkbox" id="show-vorrat"> Zeige Rittvorrat</label>
+      <label id="vergangene-toggle"><input type="checkbox" id="show-vergangene" checked> Zeige Vergangene</label>
+    </div>
   </div>
 
   <div id="split">
@@ -120,9 +142,8 @@ html, body { height: 100%; font-family: system-ui, sans-serif; font-size: 13px; 
         <input id="search" type="search" placeholder="Suchen (Name, Region, Ort …)">
         <div id="loc-controls">
           <button id="btn-locate">&#x1F4CD; Standort</button>
-          <input id="radius-input" type="number" min="10" max="3000" value="300">
-          <span id="radius-label">km Radius</span>
-          <button id="btn-clear-loc">&#x2715;</button>
+          <input id="radius-slider" type="range" min="50" max="500" step="50" value="300">
+          <span id="radius-label">300 km</span>
         </div>
         <span id="count"></span>
       </div>
@@ -157,17 +178,31 @@ html, body { height: 100%; font-family: system-ui, sans-serif; font-size: 13px; 
   </div>
 </div>
 
+<!-- mobile popup modal -->
+<div id="popup-modal">
+  <div id="popup-modal-content">
+    <div id="popup-modal-header">
+      <span id="popup-modal-title"></span>
+      <button id="popup-modal-close">✕</button>
+    </div>
+    <div id="popup-modal-body"></div>
+  </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
 <script src="data.js"></script>
 <script>
 let EVENTS = [];
-const WIKI_FILE = "https://vdd-aktuell.de/mediawiki/index.php?title=Datei:";
+const WIKI_FILE = "https://vdd-aktuell.de/mediawiki/index.php?title=Special:Redirect/file/";
 
 let showVorrat = false;
+let showVergangene = true;
+const TODAY = new Date().toISOString().slice(0, 10);
 
 // ── map ────────────────────────────────────────────────────────────────────
 const map = L.map('map').setView([51.2, 10.4], 6);
+L.Popup.mergeOptions({ autoPanPaddingTopLeft: L.point(0, 80) });
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
   maxZoom: 18
@@ -195,10 +230,19 @@ function makeIcon(color) {
 
 const markers = {};
 
+function fmtDateDe(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}.${m}.${y.slice(2)}`;
+}
+
 function dateRange(ev) {
   if (!ev.start_date) return '–';
-  if (!ev.end_date || ev.start_date === ev.end_date) return ev.start_date;
-  return ev.start_date + ' – ' + ev.end_date;
+  if (!ev.end_date || ev.start_date === ev.end_date) return fmtDateDe(ev.start_date);
+  const [sy, sm, sd] = ev.start_date.split('-');
+  const [ey, em, ed] = ev.end_date.split('-');
+  if (sy === ey) return `${sd}.${sm} – ${ed}.${em}.${ey.slice(2)}`;
+  return `${fmtDateDe(ev.start_date)} – ${fmtDateDe(ev.end_date)}`;
 }
 
 function pdfLink(filename, label, updated) {
@@ -257,6 +301,7 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 
 function eventVisible(ev) {
   if (ev.rittvorrat && !showVorrat) return false;
+  if (!showVergangene && (ev.end_date || ev.start_date) < TODAY) return false;
   if (selectedRegion && ev.region !== selectedRegion) return false;
   if (selectedEventTypes.size > 0) {
     if (!ev.event_types_arr.some(t => selectedEventTypes.has(t))) return false;
@@ -336,24 +381,24 @@ function initTable(data) {
     layout: "fitData",
     initialSort: [{ column: "start_date", dir: "asc" }],
     columns: [
-      { title: "Name",              field: "name",               formatter: fmtName,                                          frozen: true, minWidth: 160 },
-      { title: "Datum",             field: "start_date",         formatter: fmtDate,                                          width: 130 },
+      { title: "Name",              field: "name",               formatter: fmtName,                                          frozen: true, width: window.innerWidth <= 768 ? 115 : 160 },
+      { title: "Datum",             field: "start_date",         formatter: fmtDate },
+      { title: "EFR",               field: "efr",                width: 45, headerSort: false },
+      { title: "KDR",               field: "kdr",                width: 45, headerSort: false },
+      { title: "MDR",               field: "mdr",                width: 45, headerSort: false },
+      { title: "LDR",               field: "ldr",                width: 45, headerSort: false },
+      { title: "MTR",               field: "mtr",                width: 55, headerSort: false },
+      { title: "CEI",               field: "cei",                width: 55, headerSort: false },
+      { title: "Ausschreibung",     field: "announcement_pdf",   formatter: fmtPdf("announcement_pdf", "announcement_updated"), sorter: false, width: window.innerWidth <= 768 ? 40 : 110 },
+      { title: "Ergebnisliste",     field: "results_pdf",        formatter: fmtPdf("results_pdf", null),                      sorter: false, width: window.innerWidth <= 768 ? 40 : 100 },
+      { title: "Nennformular",      field: "registration_pdf",   formatter: fmtPdf("registration_pdf", null),                 sorter: false, width: window.innerWidth <= 768 ? 40 : 100 },
+      { title: "Seit",              field: "first_edition_year", sorter: "number" },
+      { title: "Website",           field: "website",            formatter: fmtLink,                                          sorter: false, width: 70 },
+      { title: "Art",               field: "event_types",        minWidth: 80 },
+      { title: "Status",            field: "status",             formatter: fmtStatus,                                        width: 110 },
       { title: "Region",            field: "region",             width: 100 },
       { title: "Veranstaltungsort", field: "venue",              minWidth: 120 },
       { title: "Veranstalter",      field: "organizer",          minWidth: 120 },
-      { title: "Art",               field: "event_types",        minWidth: 80 },
-      { title: "EFR",               field: "efr",                width: 55 },
-      { title: "KDR",               field: "kdr",                width: 55 },
-      { title: "MDR",               field: "mdr",                width: 55 },
-      { title: "LDR",               field: "ldr",                width: 55 },
-      { title: "MTR",               field: "mtr",                width: 55 },
-      { title: "CEI",               field: "cei",                width: 55 },
-      { title: "Status",            field: "status",             formatter: fmtStatus,                                        width: 110 },
-      { title: "Seit",              field: "first_edition_year", sorter: "number",                                            width: 60 },
-      { title: "Ausschreibung",     field: "announcement_pdf",   formatter: fmtPdf("announcement_pdf", "announcement_updated"), sorter: false, width: 110 },
-      { title: "Ergebnisliste",     field: "results_pdf",        formatter: fmtPdf("results_pdf", null),                      sorter: false, width: 100 },
-      { title: "Nennformular",      field: "registration_pdf",   formatter: fmtPdf("registration_pdf", null),                 sorter: false, width: 100 },
-      { title: "Website",           field: "website",            formatter: fmtLink,                                          sorter: false, width: 70 },
     ],
     rowFormatter(row) {
       const d = row.getData();
@@ -364,7 +409,11 @@ function initTable(data) {
     },
   });
 
-  tbl.on("tableBuilt", () => applyFilters());
+  tbl.on("tableBuilt", () => {
+    applyFilters();
+    map.invalidateSize();
+    fitVisibleMarkers();
+  });
 
   tbl.on("rowClick", (_e, row) => focusEvent(row.getData()));
 
@@ -379,6 +428,39 @@ function initTable(data) {
 }
 
 // ── interaction ────────────────────────────────────────────────────────────
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 860px)').matches;
+}
+
+function showModalPopup(ev) {
+  const modal = document.getElementById('popup-modal');
+  const title = document.getElementById('popup-modal-title');
+  const body = document.getElementById('popup-modal-body');
+  
+  const name = ev.name || ev.wiki_title;
+  title.textContent = name;
+  
+  // Get full popup HTML and remove the duplicate name section
+  let html = popupHtml(ev);
+  html = html.replace(/<div class="popup-name">.*?<\/div>/s, '');
+  body.innerHTML = html;
+  
+  modal.classList.add('show');
+}
+
+function hideModalPopup() {
+  const modal = document.getElementById('popup-modal');
+  modal.classList.remove('show');
+}
+
+// close button handler
+document.getElementById('popup-modal-close').addEventListener('click', hideModalPopup);
+
+// close modal when clicking outside
+document.getElementById('popup-modal').addEventListener('click', e => {
+  if (e.target.id === 'popup-modal') hideModalPopup();
+});
+
 function highlightRow(id) {
   const prevId = activeId;
   activeId = id;
@@ -390,8 +472,18 @@ function highlightRow(id) {
 function focusEvent(ev) {
   highlightRow(ev.id);
   if (markers[ev.id]) {
-    map.setView([ev.lat, ev.lon], Math.max(map.getZoom(), 10), { animate: true });
-    markers[ev.id].openPopup();
+    if (isMobileViewport()) {
+      showModalPopup(ev);
+    } else {
+      const marker = markers[ev.id];
+      const popup = marker.getPopup();
+      map.once('moveend', () => {
+        popup.options.autoPan = false;
+        marker.openPopup();
+        popup.options.autoPan = true;
+      });
+      map.setView([ev.lat, ev.lon], Math.max(map.getZoom(), 10), { animate: true });
+    }
   }
 }
 
@@ -429,6 +521,23 @@ document.getElementById('btn-clear-filters').addEventListener('click', () => {
 document.getElementById('show-vorrat').addEventListener('change', e => {
   showVorrat = e.target.checked;
   applyFilters();
+  if (showVorrat) {
+    const modal = document.getElementById('popup-modal');
+    document.getElementById('popup-modal-title').textContent = 'Hinweis: Rittvorrat';
+    document.getElementById('popup-modal-body').innerHTML =
+      '<p style="margin:0 0 10px;line-height:1.5">Der <strong>Rittvorrat</strong> enthält ältere Einträge, ' +
+      'bei denen die aufgeführten Ritte teilweise seit <strong>Jahren nicht mehr stattgefunden</strong> haben. ' +
+      'Diese Daten sind möglicherweise veraltet und spiegeln nicht den aktuellen Stand wieder.</p>' +
+      '<p style="margin:0;line-height:1.5">Vermisst du einen dieser Ritte? ' +
+      'Vielleicht kannst du dabei helfen, einen der Ritte wieder aufleben zu lassen. ' +
+      'Möglicherweise kannst du dich mit dem Veranstalter in Verbindung setzen.</p>';
+    modal.classList.add('show');
+  }
+});
+
+document.getElementById('show-vergangene').addEventListener('change', e => {
+  showVergangene = e.target.checked;
+  applyFilters();
 });
 
 document.getElementById('search').addEventListener('input', e => {
@@ -437,19 +546,39 @@ document.getElementById('search').addEventListener('input', e => {
   applyFilters();
 });
 
+const GERMANY_BOUNDS = [[47.2, 5.8], [55.1, 15.1]];
+
+function fitVisibleMarkers() {
+  map.fitBounds(GERMANY_BOUNDS);
+}
+
 function clearRadius() {
   userLat = null; userLon = null;
   if (userMarker)   { userMarker.remove();   userMarker = null; }
   if (radiusCircle) { radiusCircle.remove(); radiusCircle = null; }
-  document.getElementById('btn-locate').classList.remove('active');
-  document.getElementById('btn-clear-loc').style.display = 'none';
+  const btn = document.getElementById('btn-locate');
+  btn.classList.remove('active');
+  btn.textContent = '📍 Standort';
+  fitVisibleMarkers();
 }
 
 document.getElementById('btn-locate').addEventListener('click', () => {
+  if (userLat !== null) { clearRadius(); applyFilters(); return; }
   if (!navigator.geolocation) { alert('Geolocation nicht verfügbar'); return; }
+  const btn = document.getElementById('btn-locate');
+  btn.textContent = '⏳ …';
+  btn.disabled = true;
+  console.log('[Standort] Standortabfrage gestartet (enableHighAccuracy=true, timeout=15s)');
   navigator.geolocation.getCurrentPosition(pos => {
-    userLat = pos.coords.latitude;
-    userLon = pos.coords.longitude;
+    const { latitude, longitude, accuracy, altitude, altitudeAccuracy, heading, speed } = pos.coords;
+    console.log('[Standort] Position erhalten:', {
+      lat: latitude, lon: longitude,
+      accuracy_m: accuracy,
+      altitude, altitudeAccuracy, heading, speed,
+      timestamp: new Date(pos.timestamp).toISOString()
+    });
+    userLat = latitude;
+    userLon = longitude;
     filterText = '';
     document.getElementById('search').value = '';
     if (userMarker)   { userMarker.remove();   userMarker = null; }
@@ -458,44 +587,50 @@ document.getElementById('btn-locate').addEventListener('click', () => {
     userMarker = L.marker([userLat, userLon], {
       icon: L.divIcon({
         className: '',
-        html: '<div style="width:14px;height:14px;border-radius:50%;background:#1565c0;border:3px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.5)"></div>',
+        html: '<div style="width:14px;height:14px;border-radius:50%;background:#2ea3f2;border:3px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.5)"></div>',
         iconSize: [14, 14], iconAnchor: [7, 7]
       }),
       zIndexOffset: 1000
-    }).addTo(map).bindPopup('Mein Standort');
+    }).addTo(map).bindPopup(`Mein Standort<br><small>Genauigkeit: ±${Math.round(accuracy)} m</small>`);
 
-    radiusKm = Math.max(10, +document.getElementById('radius-input').value || 300);
+    radiusKm = +document.getElementById('radius-slider').value || 300;
     radiusCircle = L.circle([userLat, userLon], {
-      radius: radiusKm * 1000, color: '#1565c0', weight: 2,
-      fillColor: '#1565c0', fillOpacity: 0.07
+      radius: radiusKm * 1000, color: '#2ea3f2', weight: 2,
+      fillColor: '#2ea3f2', fillOpacity: 0.07
     }).addTo(map);
 
+    map.invalidateSize();
     map.fitBounds(radiusCircle.getBounds());
-    document.getElementById('btn-locate').classList.add('active');
-    document.getElementById('btn-clear-loc').style.display = '';
+    btn.textContent = '✕ Löschen';
+    btn.disabled = false;
+    btn.classList.add('active');
     applyFilters();
-  }, () => alert('Standort konnte nicht ermittelt werden.'));
+  }, err => {
+    console.error('[Standort] Fehler:', err.code, err.message);
+    btn.textContent = '📍 Standort';
+    btn.disabled = false;
+    alert('Standort konnte nicht ermittelt werden: ' + err.message);
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 });
 
-document.getElementById('radius-input').addEventListener('input', e => {
-  radiusKm = Math.max(10, +e.target.value || 300);
+document.getElementById('radius-slider').addEventListener('input', e => {
+  radiusKm = +e.target.value;
+  document.getElementById('radius-label').textContent = radiusKm + ' km';
   if (radiusCircle) {
     radiusCircle.setRadius(radiusKm * 1000);
-    if (userLat !== null) map.fitBounds(radiusCircle.getBounds());
+    map.fitBounds(radiusCircle.getBounds());
     applyFilters();
   }
-});
-
-document.getElementById('btn-clear-loc').addEventListener('click', () => {
-  clearRadius();
-  applyFilters();
 });
 
 // ── load data ──────────────────────────────────────────────────────────────
 (function () {
   const { events, scraped_at } = VDD_DATA;
-  EVENTS = events.map((ev, i) => ({ ...ev, id: ev.id ?? ev.wiki_title ?? String(i), event_types_arr: (ev.event_types || '').split(',').map(s => s.trim()).filter(Boolean) }));
-  document.getElementById('scraped-at').textContent = 'Stand: ' + scraped_at.slice(0, 16);
+  EVENTS = events.map((ev, i) => {
+    const strip = f => ev[f] ? String(ev[f]).replace(/\s+/g, '') : ev[f];
+    return { ...ev, id: ev.id ?? ev.wiki_title ?? String(i), event_types_arr: (ev.event_types || '').split(',').map(s => s.trim()).filter(Boolean), efr: strip('efr'), kdr: strip('kdr'), mdr: strip('mdr'), ldr: strip('ldr'), mtr: strip('mtr'), cei: strip('cei') };
+  });
+  document.getElementById('scraped-at').textContent = 'Stand: ' + fmtDateDe(scraped_at.slice(0, 10));
 
   // populate region dropdown
   const regionSel = document.getElementById('region-select');
@@ -524,7 +659,14 @@ document.getElementById('btn-clear-loc').addEventListener('click', () => {
     if (ev.lat && ev.lon) {
       const m = L.marker([ev.lat, ev.lon], { icon: makeIcon(markerColor(ev)) })
         .bindPopup(popupHtml(ev), { maxWidth: 340 });
-      m.on('click', () => highlightRow(ev.id));
+      m.on('click', () => {
+        highlightRow(ev.id);
+        if (isMobileViewport()) {
+          showModalPopup(ev);
+        } else {
+          markers[ev.id].openPopup();
+        }
+      });
       markers[ev.id] = m;
     }
   });
