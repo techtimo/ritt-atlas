@@ -38,6 +38,8 @@ PROPS = (
     "|?Erstveranstaltung"
     "|?Mehrtägig"
     "|?Website"
+    "|?Bemerkung"
+    "|?Ritt-Bild"
     "|sort=Startdatum"
     "|order=ascending"
 )
@@ -117,6 +119,25 @@ def nominatim_geocode(venue, organizer, region=None):
         if lat:
             return lat, lon
     return None, None
+
+
+def fetch_page_touched(titles):
+    """Return {wiki_title: "YYYY-MM-DD"} for the given page titles (batched 50 at a time)."""
+    touched = {}
+    for i in range(0, len(titles), 50):
+        batch = titles[i:i + 50]
+        resp = requests.get(
+            API_URL,
+            params={"action": "query", "prop": "info", "titles": "|".join(batch),
+                    "format": "json", "formatversion": "2"},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        for page in resp.json().get("query", {}).get("pages", []):
+            t = page.get("touched")
+            if page.get("title") and t:
+                touched[page["title"]] = t[:10]
+    return touched
 
 
 def fetch_all_events(query):
@@ -218,7 +239,10 @@ def parse_event(raw, rittvorrat):
         "status":               first(p.get("Termin", [])),
         "first_edition_year":   first_year(p.get("Erstveranstaltung", [])),
         "website":              first(p.get("Website", [])),
+        "bemerkung":            first(p.get("Bemerkung", [])),
+        "ritt_bild":            first(p.get("Ritt-Bild", [])),
         "rittvorrat":           rittvorrat,
+        "wiki_touched":         None,
     }
     return ev, lat is None
 
@@ -242,6 +266,13 @@ def main():
             if needs:
                 to_geocode.append(ev)
 
+    all_titles = [ev["wiki_title"] for ev in events if ev.get("wiki_title")]
+    print(f"\nFetching last-modified timestamps for {len(all_titles)} pages...")
+    touched_map = fetch_page_touched(all_titles)
+    for ev in events:
+        ev["wiki_touched"] = touched_map.get(ev.get("wiki_title"))
+    print(f"  got timestamps for {len(touched_map)} pages")
+
     if to_geocode:
         print(f"\nGeocoding {len(to_geocode)} events missing wiki Koordinaten via Nominatim...")
         for ev in to_geocode:
@@ -258,7 +289,7 @@ def main():
                 print(f"    -> no result")
 
     scraped_at = datetime.now(tz=ZoneInfo("Europe/Berlin")).strftime("%Y-%m-%d %H:%M:%S")
-    payload = json.dumps({"scraped_at": scraped_at, "events": events}, ensure_ascii=False)
+    payload = json.dumps({"scraped_at": scraped_at, "events": events}, ensure_ascii=False, indent=2)
     with open(DATA_PATH, "w", encoding="utf-8") as f:
         f.write(f"const VDD_DATA = {payload};\n")
 

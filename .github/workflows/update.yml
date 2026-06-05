@@ -2,7 +2,7 @@ name: Update map
 
 on:
   schedule:
-    - cron: '0 5 * * 1'   # every Monday 05:00 UTC
+    - cron: '0 5 * * *'   # every day at 05:00 UTC
   workflow_dispatch:        # manual trigger from GitHub UI
 
 jobs:

@@ -38,7 +38,7 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
   #right-pane { order: 1; width: 100%; flex: 0 0 40%; min-height: 120px; position: relative; }
   #map { position: absolute; inset: 0; }
   #controls { flex-wrap: wrap; }
-  #search { flex: 1 1 40%; min-width: 35%; }
+  #search-wrap { flex: 1 1 40%; min-width: 35%; }
   #loc-controls { flex: 1; justify-content: flex-start; }
 
   /* fullscreen modal for mobile popups */
@@ -48,7 +48,10 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
 
 /* ── search bar ── */
 #controls { display: flex; gap: 8px; align-items: center; padding: 7px 10px; background: #fff; border-bottom: 1px solid #ddd; flex-shrink: 0; }
-#search { flex: 1; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+#search-wrap { flex: 1; position: relative; display: flex; align-items: center; }
+#search { width: 100%; padding: 4px 24px 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; box-sizing: border-box; }
+#search-clear { position: absolute; right: 6px; background: none; border: none; cursor: pointer; color: #999; font-size: 15px; line-height: 1; padding: 0; display: none; }
+#search-clear:hover { color: #333; }
 #count  { font-size: 11px; color: #666; white-space: nowrap; }
 
 /* ── grid ── */
@@ -59,8 +62,9 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
 .tabulator .tabulator-header { background: #eaeaea; border-bottom: 2px solid #bbb !important; }
 .tabulator .tabulator-header .tabulator-col { background: #eaeaea !important; border-right: 1px solid #d0d0d0 !important; }
 .tabulator .tabulator-header .tabulator-col-title { font-size: 11px; font-weight: 600; }
+.tabulator .tabulator-header .tabulator-col.tabulator-sortable .tabulator-col-title { padding-right: 20px; }
 .tabulator .tabulator-row { border-bottom: 1px solid #eee !important; cursor: pointer; }
-.tabulator .tabulator-row .tabulator-cell { padding: 5px 7px !important; border-right: 1px solid #f0f0f0 !important; vertical-align: top; }
+/* .tabulator .tabulator-row .tabulator-cell { padding: 5px 7px !important; border-right: 1px solid #f0f0f0 !important; vertical-align: top; } */
 .tabulator .tabulator-row:hover .tabulator-cell { background: #fff8e1 !important; }
 .tabulator .tabulator-row.no-coords { opacity: .6; }
 .tabulator .tabulator-row.vorrat .tabulator-cell { background: #ffebee !important; }
@@ -75,6 +79,7 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
 .status-fest  { color: #2e7d32; font-weight: 600; }
 .status-vorl  { color: #e65100; }
 .status-abges { color: #b71c1c; text-decoration: line-through; }
+.row-abgesagt td { text-decoration: line-through; color: #999; }
 
 .no-map-badge { font-size: 10px; padding: 1px 4px; background: #eee; border-radius: 3px; color: #888; margin-left: 4px; }
 
@@ -87,6 +92,9 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
 .popup-doc:hover { background: #1a8fd1; color: #fff !important; }
 .popup-doc.updated::after { content: " \2605"; opacity: .9; }
 .popup-link  { display: inline-block; margin-top: 8px; font-size: 11px; color: #2ea3f2; }
+.popup-img   { width: 100%; height: 160px; object-fit: cover; border-radius: 4px; margin-bottom: 8px; display: block; background: linear-gradient(90deg, #f0f0f0 25%, #e4e4e4 50%, #f0f0f0 75%); background-size: 200% 100%; animation: img-shimmer 1.4s infinite; }
+@keyframes img-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.popup-note  { margin-top: 8px; padding: 6px 8px; background: #fffde7; border-left: 3px solid #f9a825; border-radius: 0 3px 3px 0; font-size: 11px; line-height: 1.5; white-space: pre-wrap; color: #555; }
 
 /* ── filter bar ── */
 #filter-bar { display: flex; gap: 10px; align-items: center; padding: 5px 10px; background: #f0f0f0; border-bottom: 1px solid #ddd; flex-shrink: 0; flex-wrap: wrap; }
@@ -115,8 +123,8 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
 #popup-modal-content { background: #fff; border-radius: 8px; padding: 0; max-width: 90vw; max-height: 90vh; overflow: auto; box-shadow: 0 4px 20px rgba(0,0,0,.3); width: 100%; }
 #popup-modal-header { background: #9D3230; color: #fff; padding: 12px 16px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 #popup-modal-title { flex: 1; }
-#popup-modal-close { background: transparent; color: #fff; border: none; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; width: 32px; height: 32px; flex-shrink: 0; }
-#popup-modal-close:hover { opacity: .7; }
+#popup-modal-close, #popup-modal-share { background: transparent; color: #fff; border: none; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; width: 32px; height: 32px; flex-shrink: 0; }
+#popup-modal-close:hover, #popup-modal-share:hover { opacity: .7; }
 #popup-modal-body { padding: 16px; }
 
 @media (max-width: 860px) {
@@ -128,7 +136,7 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
 
 <div id="app">
   <div id="header">
-    <h1>VDD Rittatlas 2026</h1>
+    <h1>VDD Rittatlas</h1>
     <span id="scraped-at"></span>
     <div id="toggle-group">
       <label id="vorrat-toggle"><input type="checkbox" id="show-vorrat"> Zeige Rittvorrat</label>
@@ -139,7 +147,10 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
   <div id="split">
     <div id="left-pane">
       <div id="controls">
-        <input id="search" type="search" placeholder="Suchen (Name, Region, Ort …)">
+        <div id="search-wrap">
+          <input id="search" type="text" placeholder="Suchen (Name, Region, Ort …)">
+          <button id="search-clear" aria-label="Suche löschen">&#x2715;</button>
+        </div>
         <div id="loc-controls">
           <button id="btn-locate">&#x1F4CD; Standort</button>
           <input id="radius-slider" type="range" min="50" max="500" step="50" value="300">
@@ -159,12 +170,12 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
         <div class="fbar-group">
           <span class="fbar-label">Distanz</span>
           <div class="toggle-row">
-            <button class="tog" data-dist="efr">EFR</button>
-            <button class="tog" data-dist="kdr">KDR</button>
-            <button class="tog" data-dist="mdr">MDR</button>
-            <button class="tog" data-dist="ldr">LDR</button>
-            <button class="tog" data-dist="mtr">MTR</button>
-            <button class="tog" data-dist="cei">CEI</button>
+            <button class="tog" data-dist="efr" title="Einführungsritt (25–40 km)">EFR</button>
+            <button class="tog" data-dist="kdr" title="Kurzdistanzritt (41–60 km)">KDR</button>
+            <button class="tog" data-dist="mdr" title="Mitteldistanzritt (61–80 km)">MDR</button>
+            <button class="tog" data-dist="ldr" title="Langdistanzritt (81–160 km)">LDR</button>
+            <button class="tog" data-dist="mtr" title="Mehrtagesritt">MTR</button>
+            <button class="tog" data-dist="cei" title="Concours d'Endurance International">CEI</button>
           </div>
         </div>
         <button id="btn-clear-filters">&#x2715; Filter</button>
@@ -183,6 +194,7 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
   <div id="popup-modal-content">
     <div id="popup-modal-header">
       <span id="popup-modal-title"></span>
+      <button id="popup-modal-share" title="Link teilen" data-label="🔗" data-copied="✓">🔗</button>
       <button id="popup-modal-close">✕</button>
     </div>
     <div id="popup-modal-body"></div>
@@ -195,6 +207,7 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
 <script>
 let EVENTS = [];
 const WIKI_FILE = "https://vdd-aktuell.de/mediawiki/index.php?title=Special:Redirect/file/";
+const imgCache = {};
 
 let showVorrat = false;
 let showVergangene = true;
@@ -258,7 +271,10 @@ function popupHtml(ev) {
     ev.mtr && `MTR ${ev.mtr}`, ev.cei && `CEI ${ev.cei}`,
   ].filter(Boolean).join(' | ');
 
-  let h = `<div class="popup-name">${ev.name || ev.wiki_title}`;
+  let h = '';
+  if (ev.ritt_bild) h += `<img class="popup-img" src="${WIKI_FILE}${encodeURIComponent(ev.ritt_bild)}" alt="" fetchpriority="high">`;
+
+  h += `<div class="popup-name">${ev.name || ev.wiki_title}`;
   if (ev.subtitle) h += ` <small style="font-weight:400">${ev.subtitle}</small>`;
   h += `</div>`;
 
@@ -279,7 +295,11 @@ function popupHtml(ev) {
 
   if (ev.website) h += `<div class="popup-row" style="margin-top:4px"><a href="${ev.website}" target="_blank">Website</a></div>`;
   const link = ev.vdd_url || ev.wiki_url;
-  if (link) h += `<a class="popup-link" href="${link}" target="_blank">VDD-Seite &rarr;</a>`;
+  h += `<div style="margin-top:8px;display:flex;gap:12px;align-items:center">`;
+  if (link) h += `<a class="popup-link" style="margin:0" href="${link}" target="_blank">VDD-Seite &rarr;</a>`;
+  h += `<a class="popup-link" style="margin:0" href="javascript:void(0)" onclick="shareCurrentUrl(this)" data-label="🔗 Link teilen" data-copied="✓ Link kopiert">🔗 Link teilen</a>`;
+  h += `</div>`;
+  if (ev.bemerkung) h += `<div class="popup-note"><span class="popup-label">Bemerkung: </span>${ev.bemerkung}</div>`;
   return h;
 }
 
@@ -338,11 +358,8 @@ function statusClass(s) {
 // ── Tabulator column formatters ─────────────────────────────────────────────
 function fmtName(cell) {
   const ev = cell.getRow().getData();
-  const link = ev.vdd_url || ev.wiki_url;
   const name = ev.name || ev.wiki_title;
-  let html = link
-    ? `<a href="${link}" target="_blank" onclick="event.stopPropagation()">${name}</a>`
-    : name;
+  let html = name;
   if (!ev.lat) html += '<span class="no-map-badge">kein GPS</span>';
   return html;
 }
@@ -366,7 +383,9 @@ function fmtPdf(pdfField, updatedField) {
 
 function fmtLink(cell) {
   const url = cell.getValue();
-  return url ? `<a href="${url}" target="_blank" onclick="event.stopPropagation()">Link</a>` : '';
+  if (!url) return '';
+  const label = url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+  return `<a href="${url}" target="_blank" onclick="event.stopPropagation()">${label}</a>`;
 }
 
 // ── Tabulator ──────────────────────────────────────────────────────────────
@@ -381,24 +400,25 @@ function initTable(data) {
     layout: "fitData",
     initialSort: [{ column: "start_date", dir: "asc" }],
     columns: [
-      { title: "Name",              field: "name",               formatter: fmtName,                                          frozen: true, width: window.innerWidth <= 768 ? 115 : 160 },
+      { title: "Name",              field: "name",               formatter: fmtName,                                          frozen: true, width: window.innerWidth <= 768 ? 115 : 160, tooltip: (e, cell) => cell.getData().name },
       { title: "Datum",             field: "start_date",         formatter: fmtDate },
-      { title: "EFR",               field: "efr",                width: 45, headerSort: false },
-      { title: "KDR",               field: "kdr",                width: 45, headerSort: false },
-      { title: "MDR",               field: "mdr",                width: 45, headerSort: false },
-      { title: "LDR",               field: "ldr",                width: 45, headerSort: false },
-      { title: "MTR",               field: "mtr",                width: 55, headerSort: false },
-      { title: "CEI",               field: "cei",                width: 55, headerSort: false },
-      { title: "Ausschreibung",     field: "announcement_pdf",   formatter: fmtPdf("announcement_pdf", "announcement_updated"), sorter: false, width: window.innerWidth <= 768 ? 40 : 110 },
-      { title: "Ergebnisliste",     field: "results_pdf",        formatter: fmtPdf("results_pdf", null),                      sorter: false, width: window.innerWidth <= 768 ? 40 : 100 },
-      { title: "Nennformular",      field: "registration_pdf",   formatter: fmtPdf("registration_pdf", null),                 sorter: false, width: window.innerWidth <= 768 ? 40 : 100 },
+      { title: "EFR",               field: "efr",                width: 45, headerSort: false, headerTooltip: "Einführungsritt (25–40 km)",          tooltip: true },
+      { title: "KDR",               field: "kdr",                width: 45, headerSort: false, headerTooltip: "Kurzdistanzritt (41–60 km)",           tooltip: true },
+      { title: "MDR",               field: "mdr",                width: 45, headerSort: false, headerTooltip: "Mitteldistanzritt (61–80 km)",          tooltip: true },
+      { title: "LDR",               field: "ldr",                width: 45, headerSort: false, headerTooltip: "Langdistanzritt (81–160 km)",           tooltip: true },
+      { title: "MTR",               field: "mtr",                width: 45, headerSort: false, headerTooltip: "Mehrtagesritt",                         tooltip: true },
+      { title: "CEI",               field: "cei",                width: 30, headerSort: false, headerTooltip: "Concours d'Endurance International",    tooltip: true },
+      { title: "Ausschreibung",     field: "announcement_pdf",   formatter: fmtPdf("announcement_pdf", "announcement_updated"), sorter: false, width: 40, headerTooltip: "Ausschreibung (PDF)" },
+      { title: "Ergebnisliste",     field: "results_pdf",        formatter: fmtPdf("results_pdf", null),                      sorter: false, width: 40, headerTooltip: "Ergebnisliste (PDF)" },
+      { title: "Nennformular",      field: "registration_pdf",   formatter: fmtPdf("registration_pdf", null),                 sorter: false, width: 40, headerTooltip: "Nennformular (PDF)" },
+      { title: "Geändert",          field: "wiki_touched",        formatter: cell => fmtDateDe(cell.getValue()), width: 80, headerTooltip: "Letzte Änderung auf der VDD-Wiki-Seite" },
       { title: "Seit",              field: "first_edition_year", sorter: "number" },
-      { title: "Website",           field: "website",            formatter: fmtLink,                                          sorter: false, width: 70 },
-      { title: "Art",               field: "event_types",        minWidth: 80 },
-      { title: "Status",            field: "status",             formatter: fmtStatus,                                        width: 110 },
-      { title: "Region",            field: "region",             width: 100 },
-      { title: "Veranstaltungsort", field: "venue",              minWidth: 120 },
-      { title: "Veranstalter",      field: "organizer",          minWidth: 120 },
+      { title: "Website",           field: "website",            formatter: fmtLink,                                          sorter: false, width: 160 },
+      { title: "Art",               field: "event_types",        width: 100, tooltip: true },
+      { title: "Status",            field: "status",             formatter: fmtStatus,                                        width: 110, tooltip: true },
+      { title: "Region",            field: "region",             width: 100,  tooltip: true },
+      { title: "Veranstaltungsort", field: "venue",              width: 150, tooltip: true },
+      { title: "Veranstalter",      field: "organizer",          width: 150, tooltip: true },
     ],
     rowFormatter(row) {
       const d = row.getData();
@@ -406,6 +426,7 @@ function initTable(data) {
       el.classList.toggle('vorrat',    !!d.rittvorrat);
       el.classList.toggle('no-coords', !d.lat);
       el.classList.toggle('row-active', d.id === activeId);
+      el.classList.toggle('row-abgesagt', (d.status || '').toLowerCase().includes('abgesagt'));
     },
   });
 
@@ -413,9 +434,23 @@ function initTable(data) {
     applyFilters();
     map.invalidateSize();
     fitVisibleMarkers();
+    const hash = window.location.hash.slice(1);
+    if (hash) {
+      const ev = EVENTS.find(e => e.id === decodeURIComponent(hash));
+      if (ev) focusEvent(ev);
+    }
   });
 
   tbl.on("rowClick", (_e, row) => focusEvent(row.getData()));
+
+  tbl.on("rowMouseEnter", (_e, row) => {
+    const d = row.getData();
+    if (d.ritt_bild && !imgCache[d.id]) {
+      const img = new Image();
+      img.src = WIKI_FILE + encodeURIComponent(d.ritt_bild);
+      imgCache[d.id] = img;
+    }
+  });
 
   tbl.on("dataFiltered", (_filters, rows) => {
     const visibleIds = new Set(rows.map(r => r.getData().id));
@@ -448,13 +483,38 @@ function showModalPopup(ev) {
   modal.classList.add('show');
 }
 
+function clearUrlHash() {
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+}
+
 function hideModalPopup() {
   const modal = document.getElementById('popup-modal');
   modal.classList.remove('show');
+  clearUrlHash();
 }
 
 // close button handler
 document.getElementById('popup-modal-close').addEventListener('click', hideModalPopup);
+
+function shareCurrentUrl(feedbackEl) {
+  const url = window.location.href;
+  if (navigator.share) {
+    navigator.share({ url });
+  } else {
+    navigator.clipboard.writeText(url).then(() => {
+      if (feedbackEl) {
+        const orig = feedbackEl.dataset.label || feedbackEl.textContent;
+        feedbackEl.textContent = feedbackEl.dataset.copied || '✓ Link kopiert';
+        setTimeout(() => { feedbackEl.textContent = orig; }, 1500);
+      }
+    });
+  }
+}
+
+// share button handler
+document.getElementById('popup-modal-share').addEventListener('click', e => {
+  shareCurrentUrl(e.currentTarget);
+});
 
 // close modal when clicking outside
 document.getElementById('popup-modal').addEventListener('click', e => {
@@ -470,6 +530,7 @@ function highlightRow(id) {
 }
 
 function focusEvent(ev) {
+  history.replaceState(null, '', '#' + encodeURIComponent(ev.id));
   highlightRow(ev.id);
   if (markers[ev.id]) {
     if (isMobileViewport()) {
@@ -529,7 +590,7 @@ document.getElementById('show-vorrat').addEventListener('change', e => {
       'bei denen die aufgeführten Ritte teilweise seit <strong>Jahren nicht mehr stattgefunden</strong> haben. ' +
       'Diese Daten sind möglicherweise veraltet und spiegeln nicht den aktuellen Stand wieder.</p>' +
       '<p style="margin:0;line-height:1.5">Vermisst du einen dieser Ritte? ' +
-      'Vielleicht kannst du dabei helfen, einen der Ritte wieder aufleben zu lassen. ' +
+      'Vielleicht kannst du dabei helfen, einen Ritt wieder aufleben zu lassen. ' +
       'Möglicherweise kannst du dich mit dem Veranstalter in Verbindung setzen.</p>';
     modal.classList.add('show');
   }
@@ -540,10 +601,31 @@ document.getElementById('show-vergangene').addEventListener('change', e => {
   applyFilters();
 });
 
-document.getElementById('search').addEventListener('input', e => {
+const searchEl = document.getElementById('search');
+const searchClearBtn = document.getElementById('search-clear');
+
+function syncSearchToUrl(q) {
+  const url = new URL(window.location.href);
+  if (q) url.searchParams.set('q', q);
+  else url.searchParams.delete('q');
+  history.replaceState(null, '', url.pathname + (url.search || '') + url.hash);
+}
+
+searchEl.addEventListener('input', e => {
   filterText = e.target.value;
+  searchClearBtn.style.display = filterText ? 'block' : 'none';
   if (filterText) clearRadius();
+  syncSearchToUrl(filterText);
   applyFilters();
+});
+
+searchClearBtn.addEventListener('click', () => {
+  searchEl.value = '';
+  filterText = '';
+  searchClearBtn.style.display = 'none';
+  syncSearchToUrl('');
+  applyFilters();
+  searchEl.focus();
 });
 
 const GERMANY_BOUNDS = [[47.2, 5.8], [55.1, 15.1]];
@@ -581,6 +663,7 @@ document.getElementById('btn-locate').addEventListener('click', () => {
     userLon = longitude;
     filterText = '';
     document.getElementById('search').value = '';
+    document.getElementById('search-clear').style.display = 'none';
     if (userMarker)   { userMarker.remove();   userMarker = null; }
     if (radiusCircle) { radiusCircle.remove(); radiusCircle = null; }
 
@@ -625,6 +708,13 @@ document.getElementById('radius-slider').addEventListener('input', e => {
 
 // ── load data ──────────────────────────────────────────────────────────────
 (function () {
+  const initialQ = new URL(window.location.href).searchParams.get('q');
+  if (initialQ) {
+    filterText = initialQ;
+    searchEl.value = initialQ;
+    document.getElementById('search-clear').style.display = 'block';
+  }
+
   const { events, scraped_at } = VDD_DATA;
   EVENTS = events.map((ev, i) => {
     const strip = f => ev[f] ? String(ev[f]).replace(/\s+/g, '') : ev[f];
@@ -658,16 +748,26 @@ document.getElementById('radius-slider').addEventListener('input', e => {
   EVENTS.forEach(ev => {
     if (ev.lat && ev.lon) {
       const m = L.marker([ev.lat, ev.lon], { icon: makeIcon(markerColor(ev)) })
-        .bindPopup(popupHtml(ev), { maxWidth: 340 });
-      m.on('click', () => {
-        highlightRow(ev.id);
-        if (isMobileViewport()) {
-          showModalPopup(ev);
-        } else {
-          markers[ev.id].openPopup();
+        .bindPopup(popupHtml(ev), { maxWidth: 340, maxHeight: 400 });
+      m.on('mouseover', () => {
+        if (ev.ritt_bild && !imgCache[ev.id]) {
+          const img = new Image();
+          img.src = WIKI_FILE + encodeURIComponent(ev.ritt_bild);
+          imgCache[ev.id] = img;
         }
       });
+      m.on('click', () => focusEvent(ev));
       markers[ev.id] = m;
+    }
+  });
+
+  map.on('popupclose', () => clearUrlHash());
+
+  map.on('popupopen', e => {
+    const img = e.popup.getElement()?.querySelector('.popup-img');
+    if (img && !img.complete) {
+      img.addEventListener('load', () => e.popup.update(), { once: true });
+      img.addEventListener('error', () => e.popup.update(), { once: true });
     }
   });
 
