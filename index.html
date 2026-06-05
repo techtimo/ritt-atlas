@@ -9,16 +9,14 @@
 <meta property="og:url" content="https://techtimo.github.io/vdd-rittatlas/">
 <meta property="og:title" content="VDD Rittatlas – Karte & Tabelle aller Distanzritte in Deutschland">
 <meta property="og:description" content="Interaktive Karte und Tabelle aller VDD-Distanzritte in Deutschland. Filtern nach Region, Distanz, Typ und Entfernung vom Standort">
-<meta name="twitter:card" content="summary">
-<meta name="google-site-verification" content="EzMwfEE1RtuI7DnqJFep27XXKs8Nl-nif0B6vjV06s4">
+
 <link rel="canonical" href="https://techtimo.github.io/vdd-rittatlas/">
 <link rel="icon" href="https://vdd-aktuell.de/favicon.ico">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css"/>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700;800&display=swap"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous"/>
+<link rel="stylesheet" href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" integrity="sha384-V4N7xA98XpwXEziukVT23ibnUCmr8LbIxUQpT4PSUD3yp1TgQyMvrAAelVOuO0C0" crossorigin="anonymous"/>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px; color: #333; background: #f3f3f3; }
+html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #333; background: #f3f3f3; }
 
 /* ── top bar ── */
 #header { background: #9D3230; color: #fff; padding: 10px 14px; flex-shrink: 0; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -79,7 +77,7 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
 #grid { flex: 1; min-height: 0; overflow: hidden; }
 
 /* ── Tabulator overrides ── */
-.tabulator { border: none !important; font-size: 12px; font-family: 'Open Sans', sans-serif; }
+.tabulator { border: none !important; font-size: 12px; font-family: inherit; }
 .tabulator .tabulator-header { background: #eaeaea; border-bottom: 2px solid #bbb !important; }
 .tabulator .tabulator-header .tabulator-col { background: #eaeaea !important; border-right: 1px solid #d0d0d0 !important; }
 .tabulator .tabulator-header .tabulator-col-title { font-size: 11px; font-weight: 600; }
@@ -220,12 +218,24 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
     <div id="info-modal-body">
       <p>Der <strong>VDD Rittatlas</strong> zeigt aktuelle Distanzritte und Rittvorrat-Veranstaltungen in Deutschland auf einer interaktiven Karte und Tabelle.</p>
       <p>Die Daten stammen aus der <a href="https://vdd-aktuell.de/mediawiki/" target="_blank" rel="noopener">VDD-MediaWiki</a> und werden stündlich automatisch auf Änderungen geprüft.</p>
-      <p>Quellcode: <a href="https://github.com/techtimo/vdd-rittatlas" target="_blank" rel="noopener">github.com/techtimo/ritt-atlas</a></p>
+      <p>Quellcode: <a href="https://github.com/techtimo/vdd-rittatlas" target="_blank" rel="noopener">github.com/techtimo/vdd-rittatlas</a></p>
       <table id="info-stats">
         <tr><td>Datenstand:</td><td id="info-stand">–</td></tr>
         <tr><td>Zuletzt geprüft:</td><td id="info-geprueft">–</td></tr>
         <tr><td>Letzte Änderung:</td><td id="info-last-changed">–</td></tr>
       </table>
+      <hr style="margin:14px 0;border:none;border-top:1px solid #eee">
+      <p style="font-weight:600;margin-bottom:6px">Datenschutzerklärung</p>
+      <p><strong>Verantwortlicher:</strong> Timo Giese</p>
+      <p>Diese Seite setzt <strong>keine Cookies</strong> und erstellt keine Nutzerprofile.</p>
+      <p><strong>Drittanbieter:</strong> Beim Laden der Seite werden Ressourcen von folgenden Diensten geladen, an die dabei Ihre IP-Adresse übermittelt wird:</p>
+      <ul style="margin:4px 0 8px 16px;line-height:1.8">
+        <li><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> – Kartenkacheln</li>
+        <li><a href="https://unpkg.com" target="_blank" rel="noopener">unpkg.com (Cloudflare)</a> – JavaScript-Bibliotheken</li>
+        <li><a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub</a> – Prüfung des letzten Datenabgleichs</li>
+        <li><a href="https://vdd-aktuell.de" target="_blank" rel="noopener">VDD MediaWiki</a> – Veranstaltungsbilder und Dokumente</li>
+      </ul>
+      <p><strong>Standortdaten:</strong> Die Standortfunktion verarbeitet Ihren Standort ausschließlich lokal im Browser. Es werden keine Standortdaten an uns oder Dritte übertragen.</p>
     </div>
   </div>
 </div>
@@ -242,12 +252,20 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
   </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js" integrity="sha384-SKSq3cuuVWdfrjtLz9wNlqE0bMc903yMS5zGnFtwvfddplgxa1hywtiLyw1CbSHO" crossorigin="anonymous"></script>
 <script src="data.js"></script>
 <script>
 let EVENTS = [];
 const WIKI_FILE = "https://vdd-aktuell.de/mediawiki/index.php?title=Special:Redirect/file/";
+
+function safeUrl(url) {
+  return url && /^https?:\/\//i.test(url) ? url : '';
+}
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 const imgCache = {};
 
 let showVorrat = false;
@@ -334,13 +352,14 @@ function popupHtml(ev) {
   ].filter(Boolean).join('');
   if (docs) h += `<div class="popup-docs">${docs}</div>`;
 
-  if (ev.website) h += `<div class="popup-row" style="margin-top:4px"><a href="${ev.website}" target="_blank">Website</a></div>`;
+  const siteUrl = safeUrl(ev.website);
+  if (siteUrl) h += `<div class="popup-row" style="margin-top:4px"><a href="${siteUrl}" target="_blank" rel="noopener noreferrer">Website</a></div>`;
   const link = ev.vdd_url || ev.wiki_url;
   h += `<div style="margin-top:8px;display:flex;gap:12px;align-items:center">`;
   if (link) h += `<a class="popup-link" style="margin:0" href="${link}" target="_blank">VDD-Seite &rarr;</a>`;
   h += `<a class="popup-link" style="margin:0" href="javascript:void(0)" onclick="shareCurrentUrl(this)" data-label="🔗 Link teilen" data-copied="✓ Link kopiert">🔗 Link teilen</a>`;
   h += `</div>`;
-  if (ev.bemerkung) h += `<div class="popup-note"><span class="popup-label">Bemerkung: </span>${ev.bemerkung}</div>`;
+  if (ev.bemerkung) h += `<div class="popup-note"><span class="popup-label">Bemerkung: </span>${escHtml(ev.bemerkung)}</div>`;
   return h;
 }
 
@@ -423,10 +442,10 @@ function fmtPdf(pdfField, updatedField) {
 }
 
 function fmtLink(cell) {
-  const url = cell.getValue();
+  const url = safeUrl(cell.getValue());
   if (!url) return '';
   const label = url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
-  return `<a href="${url}" target="_blank" onclick="event.stopPropagation()">${label}</a>`;
+  return `<a href="${url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${escHtml(label)}</a>`;
 }
 
 // ── Tabulator ──────────────────────────────────────────────────────────────

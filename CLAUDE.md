@@ -16,7 +16,7 @@ A single-page map/table viewer for German endurance riding events (Distanzritte)
 ## Running the scraper locally
 
 ```bash
-pip install requests
+pip install -r requirements.txt
 python vdd_scrape.py
 ```
 
