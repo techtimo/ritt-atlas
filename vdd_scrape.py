@@ -137,7 +137,7 @@ def fetch_page_touched(titles):
         for page in resp.json().get("query", {}).get("pages", []):
             t = page.get("touched")
             if page.get("title") and t:
-                touched[page["title"]] = t[:10]
+                touched[page["title"]] = t
     return touched
 
 

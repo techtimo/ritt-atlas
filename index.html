@@ -220,7 +220,6 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
       <p>Die Daten stammen aus der <a href="https://vdd-aktuell.de/mediawiki/" target="_blank" rel="noopener">VDD-MediaWiki</a> und werden stündlich automatisch auf Änderungen geprüft.</p>
       <p>Quellcode: <a href="https://github.com/techtimo/vdd-rittatlas" target="_blank" rel="noopener">github.com/techtimo/vdd-rittatlas</a></p>
       <table id="info-stats">
-        <tr><td>Datenstand:</td><td id="info-stand">–</td></tr>
         <tr><td>Zuletzt geprüft:</td><td id="info-geprueft">–</td></tr>
         <tr><td>Letzte Änderung:</td><td id="info-last-changed">–</td></tr>
       </table>
@@ -304,7 +303,7 @@ const markers = {};
 
 function fmtDateDe(iso) {
   if (!iso) return '';
-  const [y, m, d] = iso.split('-');
+  const [y, m, d] = iso.slice(0, 10).split('-');
   return `${d}.${m}.${y.slice(2)}`;
 }
 
@@ -557,7 +556,7 @@ function hideModalPopup() {
 document.getElementById('popup-modal-close').addEventListener('click', hideModalPopup);
 
 function shareCurrentUrl(feedbackEl) {
-  const url = window.location.href;
+  const url = window.location.origin + window.location.pathname + window.location.hash;
   if (navigator.share) {
     navigator.share({ url });
   } else {
@@ -601,6 +600,9 @@ function focusEvent(ev) {
       map.once('moveend', () => {
         popup.options.autoPan = false;
         marker.openPopup();
+        // Restore hash: popupclose on the previous popup fires during openPopup()
+        // and calls clearUrlHash(), wiping the hash we just set.
+        history.replaceState(null, '', '#' + encodeURIComponent(ev.id));
         popup.options.autoPan = true;
         // Re-run _adjustPan now that autoPan is re-enabled; without this the
         // popup can open partially above the visible map area because autoPan
@@ -784,12 +786,21 @@ document.getElementById('radius-slider').addEventListener('input', e => {
     const strip = f => ev[f] ? String(ev[f]).replace(/\s+/g, '') : ev[f];
     return { ...ev, id: ev.id ?? ev.wiki_title ?? String(i), event_types_arr: (ev.event_types || '').split(',').map(s => s.trim()).filter(Boolean), efr: strip('efr'), kdr: strip('kdr'), mdr: strip('mdr'), ldr: strip('ldr'), mtr: strip('mtr'), cei: strip('cei') };
   });
-  document.getElementById('info-stand').textContent = fmtDateDe(scraped_at.slice(0, 10));
-
   const lastChanged = EVENTS.filter(e => e.wiki_touched).sort((a, b) => b.wiki_touched.localeCompare(a.wiki_touched))[0];
   if (lastChanged) {
-    document.getElementById('info-last-changed').textContent =
-      `${lastChanged.name || lastChanged.wiki_title} (${fmtDateDe(lastChanged.wiki_touched)})`;
+    const a = document.createElement('a');
+    a.href = '#' + encodeURIComponent(lastChanged.id);
+    a.textContent = lastChanged.name || lastChanged.wiki_title;
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      window.location.hash = encodeURIComponent(lastChanged.id);
+      document.getElementById('info-modal').classList.remove('show');
+      focusEvent(lastChanged);
+    });
+    const cell = document.getElementById('info-last-changed');
+    cell.textContent = '';
+    cell.appendChild(a);
+    cell.appendChild(document.createTextNode(` (${fmtDateDe(lastChanged.wiki_touched)})`));
   }
 
   fetch('https://api.github.com/repos/techtimo/ritt-atlas/actions/workflows/update.yml/runs?per_page=1')
@@ -856,7 +867,19 @@ document.getElementById('radius-slider').addEventListener('input', e => {
     }
   });
 
-  map.on('popupclose', () => clearUrlHash());
+  map.on('popupclose', e => {
+    const closingId = Object.keys(markers).find(id => markers[id].getPopup() === e.popup);
+    const currentHash = decodeURIComponent(window.location.hash.slice(1));
+    if (!closingId || currentHash === closingId) {
+      clearUrlHash();
+      if (activeId) {
+        const prevId = activeId;
+        activeId = null;
+        const r = tbl.getRow(prevId);
+        if (r) r.reformat();
+      }
+    }
+  });
 
   map.on('popupopen', e => {
     const img = e.popup.getElement()?.querySelector('.popup-img');
