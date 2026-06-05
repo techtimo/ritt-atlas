@@ -602,6 +602,10 @@ function focusEvent(ev) {
         popup.options.autoPan = false;
         marker.openPopup();
         popup.options.autoPan = true;
+        // Re-run _adjustPan now that autoPan is re-enabled; without this the
+        // popup can open partially above the visible map area because autoPan
+        // was suppressed during openPopup() to prevent a double-pan animation.
+        requestAnimationFrame(() => popup.update());
       });
       map.setView([ev.lat, ev.lon], Math.max(map.getZoom(), 10), { animate: true });
     }

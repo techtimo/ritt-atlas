@@ -47,6 +47,8 @@ Open `index.html` directly in a browser — no server needed. The page loads `da
 
 **Event focus** (`focusEvent`): highlights the table row, opens a Leaflet popup on desktop, or a fullscreen modal (`#popup-modal`) on mobile (≤860px breakpoint).
 
+**Popup positioning (desktop only):** On mobile (≤860px) Leaflet popups are hidden via CSS (`.leaflet-popup { display: none }`) and the custom `#popup-modal` is used instead — no positioning issues there. On desktop, `autoPanPaddingTopLeft: L.point(0, 80)` is set globally so Leaflet keeps 80 px of clearance from the map top (needed because zoom controls sit there). In `focusEvent`, `autoPan` is temporarily disabled during `openPopup()` to prevent a double-pan animation (the map was just panned by `setView`), then immediately re-enabled; a `requestAnimationFrame(() => popup.update())` call re-triggers `_adjustPan()` so the 80 px padding is actually applied.
+
 ## data.js schema (per event)
 
 Key fields: `id`, `wiki_title`, `vdd_url`, `name`, `subtitle`, `start_date`, `end_date`, `region`, `venue`, `lat`, `lon`, `organizer`, `event_types` (comma-separated string), `event_types_arr` (array, added at runtime), `efr/kdr/mdr/ldr/mtr/cei` (distance strings), `announcement_pdf`, `announcement_updated` (bool), `results_pdf`, `registration_pdf`, `status`, `first_edition_year`, `website`, `bemerkung` (free-text notes, ~44% of events), `ritt_bild` (photo filename, ~36% of events), `rittvorrat` (0/1), `wiki_touched` (YYYY-MM-DD of last wiki edit).
