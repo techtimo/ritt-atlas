@@ -2,7 +2,7 @@ name: Update map
 
 on:
   schedule:
-    - cron: '0 5 * * *'   # every day at 05:00 UTC
+    - cron: '0 * * * *'   # every hour
   workflow_dispatch:        # manual trigger from GitHub UI
 
 jobs:
@@ -20,9 +20,18 @@ jobs:
 
       - run: pip install requests
 
-      - run: python vdd_scrape.py
+      - name: Check for wiki changes
+        id: check
+        run: |
+          result=$(python vdd_scrape.py --check-only)
+          echo "changed=$result" >> "$GITHUB_OUTPUT"
+
+      - name: Run scraper
+        if: steps.check.outputs.changed == 'true'
+        run: python vdd_scrape.py
 
       - name: Commit & push
+        if: steps.check.outputs.changed == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

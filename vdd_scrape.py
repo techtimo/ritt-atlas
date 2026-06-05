@@ -1,5 +1,6 @@
 import requests
 import json
+import sys
 import time
 import re
 from datetime import datetime, timezone
@@ -288,7 +289,14 @@ def main():
             else:
                 print(f"    -> no result")
 
-    scraped_at = datetime.now(tz=ZoneInfo("Europe/Berlin")).strftime("%Y-%m-%d %H:%M:%S")
+    old = _read_existing_data()
+    if old and json.dumps(old["events"], ensure_ascii=False, sort_keys=True) == \
+               json.dumps(events,        ensure_ascii=False, sort_keys=True):
+        scraped_at = old["scraped_at"]
+        print("Events unchanged — keeping existing scraped_at.")
+    else:
+        scraped_at = datetime.now(tz=ZoneInfo("Europe/Berlin")).strftime("%Y-%m-%d %H:%M:%S")
+
     payload = json.dumps({"scraped_at": scraped_at, "events": events}, ensure_ascii=False, indent=2)
     with open(DATA_PATH, "w", encoding="utf-8") as f:
         f.write(f"const VDD_DATA = {payload};\n")
@@ -300,5 +308,54 @@ def main():
           f"({pins} with pins, {len(to_geocode)} Nominatim lookups)")
 
 
+def _read_existing_data():
+    try:
+        with open(DATA_PATH, "r", encoding="utf-8") as f:
+            content = f.read()
+        m = re.search(r'const VDD_DATA\s*=\s*(\{.+\})\s*;', content, re.DOTALL)
+        if m:
+            return json.loads(m.group(1))
+    except Exception:
+        pass
+    return None
+
+
+def read_last_scraped_at():
+    d = _read_existing_data()
+    return d.get("scraped_at") if d else None
+
+
+def has_wiki_changes(since_local):
+    """Return True if any namespace-0 page changed since since_local (Europe/Berlin, YYYY-MM-DD HH:MM:SS)."""
+    dt = datetime.strptime(since_local, "%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo("Europe/Berlin"))
+    since_utc = dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        resp = requests.get(
+            API_URL,
+            params={
+                "action": "query",
+                "list": "recentchanges",
+                "rcend": since_utc,
+                "rcnamespace": "0",
+                "rclimit": "1",
+                "rcprop": "title",
+                "format": "json",
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return bool(resp.json().get("query", {}).get("recentchanges"))
+    except Exception as e:
+        print(f"Change detection failed: {e}", file=sys.stderr)
+        return True  # fail open: assume changes so the scraper still runs
+
+
 if __name__ == "__main__":
-    main()
+    if "--check-only" in sys.argv:
+        last = read_last_scraped_at()
+        if not last:
+            print("true")  # no data.js yet
+        else:
+            print("true" if has_wiki_changes(last) else "false")
+    else:
+        main()

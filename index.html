@@ -14,10 +14,23 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
 
 /* ── top bar ── */
 #header { background: #9D3230; color: #fff; padding: 10px 14px; flex-shrink: 0; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-#header h1, #scraped-at { flex-shrink: 0; }
-#header h1 { font-size: 16px; font-weight: 600; white-space: nowrap; }
-#scraped-at { font-size: 11px; opacity: .7; white-space: nowrap; }
+#header h1 { flex-shrink: 0; font-size: 16px; font-weight: 600; white-space: nowrap; }
 #toggle-group { margin-left: auto; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+#btn-info { background: transparent; border: 1.5px solid rgba(255,255,255,.6); border-radius: 50%; color: #fff; cursor: pointer; font-size: 13px; font-weight: 700; width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; }
+#btn-info:hover { background: rgba(255,255,255,.15); }
+/* ── info modal ── */
+#info-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 10001; align-items: center; justify-content: center; }
+#info-modal.show { display: flex; }
+#info-modal-content { background: #fff; border-radius: 8px; padding: 0; max-width: 480px; width: 90vw; box-shadow: 0 4px 20px rgba(0,0,0,.3); }
+#info-modal-header { background: #9D3230; color: #fff; padding: 12px 16px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: space-between; }
+#info-modal-close { background: transparent; color: #fff; border: none; font-size: 20px; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+#info-modal-close:hover { opacity: .7; }
+#info-modal-body { padding: 16px; font-size: 13px; line-height: 1.6; color: #333; }
+#info-modal-body p { margin: 0 0 10px; }
+#info-modal-body a { color: #9D3230; }
+#info-stats { border-collapse: collapse; margin-top: 12px; width: 100%; }
+#info-stats td { padding: 3px 8px 3px 0; vertical-align: top; }
+#info-stats td:first-child { white-space: nowrap; opacity: .65; padding-right: 12px; }
 #vorrat-toggle, #vergangene-toggle { font-size: 12px; display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; white-space: nowrap; }
 #vorrat-toggle input, #vergangene-toggle input { cursor: pointer; width: 14px; height: 14px; accent-color: #ffcdd2; }
 
@@ -137,11 +150,11 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
 <div id="app">
   <div id="header">
     <h1>VDD Rittatlas</h1>
-    <span id="scraped-at"></span>
     <div id="toggle-group">
       <label id="vorrat-toggle"><input type="checkbox" id="show-vorrat"> Zeige Rittvorrat</label>
       <label id="vergangene-toggle"><input type="checkbox" id="show-vergangene" checked> Zeige Vergangene</label>
     </div>
+    <button id="btn-info" title="Über diesen Atlas">i</button>
   </div>
 
   <div id="split">
@@ -185,6 +198,26 @@ html, body { height: 100%; font-family: 'Open Sans', sans-serif; font-size: 13px
 
     <div id="right-pane">
       <div id="map"></div>
+    </div>
+  </div>
+</div>
+
+<!-- info modal -->
+<div id="info-modal">
+  <div id="info-modal-content">
+    <div id="info-modal-header">
+      <span>Über diesen Atlas</span>
+      <button id="info-modal-close">✕</button>
+    </div>
+    <div id="info-modal-body">
+      <p>Der <strong>VDD Rittatlas</strong> zeigt aktuelle Distanzritte und Rittvorrat-Veranstaltungen in Deutschland auf einer interaktiven Karte und Tabelle.</p>
+      <p>Die Daten stammen aus der <a href="https://vdd-aktuell.de/mediawiki/" target="_blank" rel="noopener">VDD-MediaWiki</a> und werden stündlich automatisch auf Änderungen geprüft.</p>
+      <p>Quellcode: <a href="https://github.com/techtimo/vdd-rittatlas" target="_blank" rel="noopener">github.com/techtimo/ritt-atlas</a></p>
+      <table id="info-stats">
+        <tr><td>Datenstand:</td><td id="info-stand">–</td></tr>
+        <tr><td>Zuletzt geprüft:</td><td id="info-geprueft">–</td></tr>
+        <tr><td>Letzte Änderung:</td><td id="info-last-changed">–</td></tr>
+      </table>
     </div>
   </div>
 </div>
@@ -720,7 +753,38 @@ document.getElementById('radius-slider').addEventListener('input', e => {
     const strip = f => ev[f] ? String(ev[f]).replace(/\s+/g, '') : ev[f];
     return { ...ev, id: ev.id ?? ev.wiki_title ?? String(i), event_types_arr: (ev.event_types || '').split(',').map(s => s.trim()).filter(Boolean), efr: strip('efr'), kdr: strip('kdr'), mdr: strip('mdr'), ldr: strip('ldr'), mtr: strip('mtr'), cei: strip('cei') };
   });
-  document.getElementById('scraped-at').textContent = 'Stand: ' + fmtDateDe(scraped_at.slice(0, 10));
+  document.getElementById('info-stand').textContent = fmtDateDe(scraped_at.slice(0, 10));
+
+  const lastChanged = EVENTS.filter(e => e.wiki_touched).sort((a, b) => b.wiki_touched.localeCompare(a.wiki_touched))[0];
+  if (lastChanged) {
+    document.getElementById('info-last-changed').textContent =
+      `${lastChanged.name || lastChanged.wiki_title} (${fmtDateDe(lastChanged.wiki_touched)})`;
+  }
+
+  fetch('https://api.github.com/repos/techtimo/ritt-atlas/actions/workflows/update.yml/runs?per_page=1')
+    .then(r => r.ok ? r.json() : null)
+    .then(d => {
+      const run = d?.workflow_runs?.[0];
+      if (!run) return;
+      const mins = Math.round((Date.now() - new Date(run.updated_at)) / 60000);
+      let ago;
+      if (mins < 2)        ago = 'gerade eben';
+      else if (mins < 60)  ago = `vor ${mins} Min.`;
+      else if (mins < 120) ago = 'vor 1 Std.';
+      else                 ago = `vor ${Math.round(mins / 60)} Std.`;
+      document.getElementById('info-geprueft').textContent = ago;
+    })
+    .catch(() => {});
+
+  document.getElementById('btn-info').addEventListener('click', () =>
+    document.getElementById('info-modal').classList.add('show')
+  );
+  document.getElementById('info-modal-close').addEventListener('click', () =>
+    document.getElementById('info-modal').classList.remove('show')
+  );
+  document.getElementById('info-modal').addEventListener('click', e => {
+    if (e.target.id === 'info-modal') document.getElementById('info-modal').classList.remove('show');
+  });
 
   // populate region dropdown
   const regionSel = document.getElementById('region-select');

@@ -1,5 +1,5 @@
 const VDD_DATA = {
-  "scraped_at": "2026-06-05 00:43:57",
+  "scraped_at": "2026-06-04 15:50:57",
   "events": [
     {
       "id": "Frühjahrsdistanz am Meer 2026",
