@@ -94,6 +94,8 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .tbl-doc { display: inline-block; padding: 2px 6px; background: #2ea3f2; color: #fff; border-radius: 3px; font-size: 10px; text-decoration: none; white-space: nowrap; }
 .tbl-doc:hover { background: #1a8fd1; }
 .tbl-doc.updated::after { content: " *"; }
+.tbl-doc-ics { background: #388e3c !important; }
+.tbl-doc-ics:hover { background: #2e7d32 !important; }
 
 .status-fest  { color: #2e7d32; font-weight: 600; }
 .status-vorl  { color: #e65100; }
@@ -110,6 +112,8 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .popup-doc   { display: inline-block; padding: 3px 8px; background: #2ea3f2; color: #fff !important; border-radius: 3px; font-size: 11px; text-decoration: none !important; font-weight: 600; }
 .popup-doc:hover { background: #1a8fd1; color: #fff !important; }
 .popup-doc.updated::after { content: " \2605"; opacity: .9; }
+.popup-doc-ics { background: #388e3c !important; }
+.popup-doc-ics:hover { background: #2e7d32 !important; }
 .popup-link  { display: inline-block; margin-top: 8px; font-size: 11px; color: #2ea3f2; }
 .popup-img   { width: 100%; height: 160px; object-fit: cover; border-radius: 4px; margin-bottom: 8px; display: block; background: linear-gradient(90deg, #f0f0f0 25%, #e4e4e4 50%, #f0f0f0 75%); background-size: 200% 100%; animation: img-shimmer 1.4s infinite; }
 @keyframes img-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -322,6 +326,46 @@ function pdfLink(filename, label, updated) {
   return `<a class="popup-doc${updated ? ' updated' : ''}" href="${url}" target="_blank">${label}</a>`;
 }
 
+function icsDownload(ev) {
+  if (!ev.start_date) return;
+  const pad = s => String(s).padStart(2, '0');
+  const toDate = str => str.replace(/-/g, '');
+  // RFC 5545 TEXT escaping: backslash first, then real newlines → \n, then ; and ,
+  const esc = s => String(s).replace(/\\/g, '\\\\').replace(/\r\n|\r|\n/g, '\\n').replace(/;/g, '\\;').replace(/,/g, '\\,');
+  // DTEND for all-day events is exclusive — add one day
+  const endExcl = d => {
+    const [y, m, day] = d.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, day + 1));
+    return `${dt.getUTCFullYear()}${pad(dt.getUTCMonth()+1)}${pad(dt.getUTCDate())}`;
+  };
+  const end = ev.end_date && ev.end_date !== ev.start_date ? ev.end_date : ev.start_date;
+  const distParts = ['efr','kdr','mdr','ldr','mtr','cei'].map(k => ev[k] && `${k.toUpperCase()} ${ev[k]}`).filter(Boolean).join(', ');
+  const descParts = [
+    distParts      && `Distanzen: ${distParts}`,
+    ev.organizer   && `Veranstalter: ${ev.organizer}`,
+    ev.event_types && `Art: ${ev.event_types}`,
+    ev.vdd_url,
+  ].filter(Boolean).map(esc).join('\\n');
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//VDD Viewer//DE',
+    'BEGIN:VEVENT',
+    `UID:vdd-${(ev.id || ev.wiki_title).replace(/\s+/g, '-')}@vdd-aktuell.de`,
+    `DTSTART;VALUE=DATE:${toDate(ev.start_date)}`,
+    `DTEND;VALUE=DATE:${endExcl(end)}`,
+    `SUMMARY:${esc(ev.name || ev.wiki_title)}`,
+    ev.venue    ? `LOCATION:${esc(ev.venue)}` : '',
+    descParts   ? `DESCRIPTION:${descParts}` : '',
+    ev.vdd_url  ? `URL:${ev.vdd_url}` : '',
+    'END:VEVENT', 'END:VCALENDAR',
+  ].filter(l => l !== '').join('\r\n');
+  const blob = new Blob([lines], { type: 'text/calendar;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${(ev.name || ev.wiki_title).replace(/[^a-zA-Z0-9_-]/g, '_')}.ics`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 function popupHtml(ev) {
   const distParts = [
     ev.efr && `EFR ${ev.efr}`, ev.kdr && `KDR ${ev.kdr}`,
@@ -348,6 +392,7 @@ function popupHtml(ev) {
     pdfLink(ev.announcement_pdf, 'Ausschreibung', ev.announcement_updated),
     pdfLink(ev.results_pdf,      'Ergebnisliste', false),
     pdfLink(ev.registration_pdf, 'Nennformular',  false),
+    ev.start_date ? `<a class="popup-doc popup-doc-ics" href="javascript:void(0)" onclick="icsDownload(EVENTS.find(e=>e.id==='${ev.id}'))">Kalender</a>` : '',
   ].filter(Boolean).join('');
   if (docs) h += `<div class="popup-docs">${docs}</div>`;
 
@@ -440,6 +485,12 @@ function fmtPdf(pdfField, updatedField) {
   };
 }
 
+function fmtIcs(cell) {
+  const ev = cell.getRow().getData();
+  if (!ev.start_date) return '';
+  return `<a class="tbl-doc tbl-doc-ics" href="javascript:void(0)" onclick="event.stopPropagation();icsDownload(EVENTS.find(e=>e.id==='${ev.id}'))">ICS</a>`;
+}
+
 function fmtLink(cell) {
   const url = safeUrl(cell.getValue());
   if (!url) return '';
@@ -470,6 +521,7 @@ function initTable(data) {
       { title: "Ausschreibung",     field: "announcement_pdf",   formatter: fmtPdf("announcement_pdf", "announcement_updated"), sorter: false, width: 40, headerTooltip: "Ausschreibung (PDF)" },
       { title: "Ergebnisliste",     field: "results_pdf",        formatter: fmtPdf("results_pdf", null),                      sorter: false, width: 40, headerTooltip: "Ergebnisliste (PDF)" },
       { title: "Nennformular",      field: "registration_pdf",   formatter: fmtPdf("registration_pdf", null),                 sorter: false, width: 40, headerTooltip: "Nennformular (PDF)" },
+      { title: "Kalender",          field: "start_date",         formatter: fmtIcs,                                           sorter: false, width: 40, headerTooltip: "Termin als ICS-Datei herunterladen" },
       { title: "Geändert",          field: "wiki_touched",        formatter: cell => fmtDateDe(cell.getValue()), width: 80, headerTooltip: "Letzte Änderung auf der VDD-Wiki-Seite" },
       { title: "Seit",              field: "first_edition_year", sorter: "number" },
       { title: "Website",           field: "website",            formatter: fmtLink,                                          sorter: false, width: 160 },
@@ -557,17 +609,13 @@ document.getElementById('popup-modal-close').addEventListener('click', hideModal
 
 function shareCurrentUrl(feedbackEl) {
   const url = window.location.origin + window.location.pathname + window.location.hash;
-  if (navigator.share) {
-    navigator.share({ url });
-  } else {
-    navigator.clipboard.writeText(url).then(() => {
-      if (feedbackEl) {
-        const orig = feedbackEl.dataset.label || feedbackEl.textContent;
-        feedbackEl.textContent = feedbackEl.dataset.copied || '✓ Link kopiert';
-        setTimeout(() => { feedbackEl.textContent = orig; }, 1500);
-      }
-    });
-  }
+  navigator.clipboard.writeText(url).then(() => {
+    if (feedbackEl) {
+      const orig = feedbackEl.dataset.label || feedbackEl.textContent;
+      feedbackEl.textContent = feedbackEl.dataset.copied || '✓ Link kopiert';
+      setTimeout(() => { feedbackEl.textContent = orig; }, 1500);
+    }
+  });
 }
 
 // share button handler
