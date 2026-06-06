@@ -12,7 +12,7 @@
 
 <link rel="canonical" href="https://techtimo.github.io/vdd-rittatlas/">
 <link rel="icon" href="https://vdd-aktuell.de/favicon.ico">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous"/>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" crossorigin="anonymous"/>
 <link rel="stylesheet" href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" integrity="sha384-V4N7xA98XpwXEziukVT23ibnUCmr8LbIxUQpT4PSUD3yp1TgQyMvrAAelVOuO0C0" crossorigin="anonymous"/>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -61,8 +61,8 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
   #loc-controls { flex: 1; justify-content: flex-start; }
 
   /* fullscreen modal for mobile popups */
-  .leaflet-popup { display: none; }
-  .leaflet-popup.mobile-modal { display: flex; }
+  .maplibregl-popup { display: none; }
+  .maplibregl-popup.mobile-modal { display: flex; }
 }
 
 /* ── search bar ── */
@@ -105,7 +105,14 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .no-map-badge { font-size: 10px; padding: 1px 4px; background: #eee; border-radius: 3px; color: #888; margin-left: 4px; }
 
 /* ── popup ── */
-.popup-name  { font-weight: 700; font-size: 14px; margin-bottom: 5px; }
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: #547583 !important; }
+.maplibregl-popup-content { padding: 0; max-height: 400px; display: flex; flex-direction: column; overflow: hidden; border-radius: 4px; }
+.popup-header { flex-shrink: 0; background: #9D3230; color: #fff; padding: 9px 12px; display: flex; align-items: center; gap: 8px; border-radius: 4px 4px 0 0; }
+.popup-header-title { flex: 1; font-weight: 700; font-size: 13px; line-height: 1.3; }
+.popup-header-close { background: transparent; border: none; color: #fff; font-size: 17px; cursor: pointer; padding: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.popup-header-close:hover { opacity: .7; }
+.popup-body  { flex: 1; overflow-y: auto; padding: 12px; min-height: 0; }
+.popup-footer { flex-shrink: 0; border-top: 1px solid #eee; padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 5px; background: #547583; border-radius: 0 0 4px 4px; }
 .popup-row   { margin: 2px 0; font-size: 12px; }
 .popup-label { color: #777; }
 .popup-docs  { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px; }
@@ -115,8 +122,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .popup-doc-ics { background: #388e3c !important; }
 .popup-doc-ics:hover { background: #2e7d32 !important; }
 .popup-link  { display: inline-block; margin-top: 8px; font-size: 11px; color: #2ea3f2; }
-.popup-img   { width: 100%; height: 160px; object-fit: cover; border-radius: 4px; margin-bottom: 8px; display: block; background: linear-gradient(90deg, #f0f0f0 25%, #e4e4e4 50%, #f0f0f0 75%); background-size: 200% 100%; animation: img-shimmer 1.4s infinite; }
-@keyframes img-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.popup-img   { width: 100%; height: 120px; border-radius: 4px; margin-bottom: 8px; background-color: #f0f0f0; background-size: cover; background-position: center; }
 .popup-note  { margin-top: 8px; padding: 6px 8px; background: #fffde7; border-left: 3px solid #f9a825; border-radius: 0 3px 3px 0; font-size: 11px; line-height: 1.5; white-space: pre-wrap; color: #555; }
 
 /* ── filter bar ── */
@@ -143,12 +149,13 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 /* ── mobile popup modal ── */
 #popup-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 10000; align-items: center; justify-content: center; }
 #popup-modal.show { display: flex; }
-#popup-modal-content { background: #fff; border-radius: 8px; padding: 0; max-width: 90vw; max-height: 90vh; overflow: auto; box-shadow: 0 4px 20px rgba(0,0,0,.3); width: 100%; }
-#popup-modal-header { background: #9D3230; color: #fff; padding: 12px 16px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#popup-modal-content { background: #fff; border-radius: 8px; padding: 0; max-width: 90vw; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,.3); width: 100%; }
+#popup-modal-header { flex-shrink: 0; background: #9D3230; color: #fff; padding: 6px 16px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 #popup-modal-title { flex: 1; }
 #popup-modal-close, #popup-modal-share { background: transparent; color: #fff; border: none; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; width: 32px; height: 32px; flex-shrink: 0; }
 #popup-modal-close:hover, #popup-modal-share:hover { opacity: .7; }
-#popup-modal-body { padding: 16px; }
+#popup-modal-body { flex: 1; overflow-y: auto; padding: 16px; min-height: 0; }
+#popup-modal-footer { flex-shrink: 0; border-top: 1px solid #eee; padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 5px; background: #547583; border-radius: 0 0 8px 8px; }
 
 @media (max-width: 860px) {
   #popup-modal-content { max-height: 80vh; }
@@ -233,7 +240,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
       <p>Diese Seite setzt <strong>keine Cookies</strong> und erstellt keine Nutzerprofile.</p>
       <p><strong>Drittanbieter:</strong> Beim Laden der Seite werden Ressourcen von folgenden Diensten geladen, an die dabei Ihre IP-Adresse übermittelt wird:</p>
       <ul style="margin:4px 0 8px 16px;line-height:1.8">
-        <li><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> – Kartenkacheln</li>
+        <li><a href="https://basemap.de" target="_blank" rel="noopener">basemap.de</a> / <a href="https://www.bkg.bund.de" target="_blank" rel="noopener">BKG</a> – Vektorkartenkacheln (Relief-Stil)</li>
         <li><a href="https://unpkg.com" target="_blank" rel="noopener">unpkg.com (Cloudflare)</a> – JavaScript-Bibliotheken</li>
         <li><a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub</a> – Prüfung des letzten Datenabgleichs</li>
         <li><a href="https://vdd-aktuell.de" target="_blank" rel="noopener">VDD MediaWiki</a> – Veranstaltungsbilder und Dokumente</li>
@@ -248,14 +255,15 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
   <div id="popup-modal-content">
     <div id="popup-modal-header">
       <span id="popup-modal-title"></span>
-      <button id="popup-modal-share" title="Link teilen" data-label="🔗" data-copied="✓">🔗</button>
+      <button id="popup-modal-share" title="Link teilen" data-copied="✓"></button>
       <button id="popup-modal-close">✕</button>
     </div>
     <div id="popup-modal-body"></div>
+    <div id="popup-modal-footer"></div>
   </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js" integrity="sha384-SKSq3cuuVWdfrjtLz9wNlqE0bMc903yMS5zGnFtwvfddplgxa1hywtiLyw1CbSHO" crossorigin="anonymous"></script>
 <script src="data.js"></script>
 <script>
@@ -270,18 +278,32 @@ function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 const imgCache = {};
+function preloadImg(ev) {
+  if (ev.ritt_bild && !imgCache[ev.id]) {
+    const img = new Image();
+    img.src = WIKI_FILE + encodeURIComponent(ev.ritt_bild);
+    imgCache[ev.id] = img;
+  }
+}
 
-let showVorrat = false;
-let showVergangene = true;
+let showVorrat = document.getElementById('show-vorrat').checked;
+let showVergangene = document.getElementById('show-vergangene').checked;
 const TODAY = new Date().toISOString().slice(0, 10);
 
 // ── map ────────────────────────────────────────────────────────────────────
-const map = L.map('map').setView([51.2, 10.4], 6);
-L.Popup.mergeOptions({ autoPanPaddingTopLeft: L.point(0, 80) });
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
-  maxZoom: 18
-}).addTo(map);
+const map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_top.json',
+  center: [10.4, 51.2],
+  zoom: 6,
+  attributionControl: { compact: true },
+  pitchWithRotate: false,
+  maxPitch: 0,
+  dragRotate: false,
+});
+map.touchZoomRotate.disableRotation();
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+map.on('click', () => { if (openPopup) openPopup.remove(); });
 
 function markerColor(ev) {
   if (ev.rittvorrat) return '#c62828';
@@ -291,19 +313,87 @@ function markerColor(ev) {
   return '#2e7d32';
 }
 
-function makeIcon(color) {
-  return L.divIcon({
-    className: '',
-    html: `<svg width="22" height="33" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24C24 5.37 18.63 0 12 0z"
-            fill="${color}" stroke="#fff" stroke-width="1.5"/>
-      <circle cx="12" cy="12" r="4.5" fill="#fff" opacity=".85"/>
-    </svg>`,
-    iconSize: [22, 33], iconAnchor: [11, 33], popupAnchor: [0, -33]
+const _markerElCache = {};
+function makeMarkerEl(color) {
+  if (!_markerElCache[color]) {
+    const el = document.createElement('div');
+    el.style.cssText = 'width:22px;height:33px;cursor:pointer';
+    el.innerHTML = `<svg width="22" height="33" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24C24 5.37 18.63 0 12 0z"
+          fill="${color}" stroke="#fff" stroke-width="1.5"/>
+    <circle cx="12" cy="12" r="4.5" fill="#fff" opacity=".85"/>
+  </svg>`;
+    _markerElCache[color] = el;
+  }
+  return _markerElCache[color].cloneNode(true);
+}
+
+function kmOffsets(lat, km) {
+  const dLat = km / 111.32;
+  return { dLat, dLon: km / (111.32 * Math.cos(lat * Math.PI / 180)) };
+}
+
+function circlePolygon(lat, lon, km, n = 64) {
+  const { dLat, dLon } = kmOffsets(lat, km);
+  const coords = Array.from({ length: n + 1 }, (_, i) => {
+    const a = (i / n) * 2 * Math.PI;
+    return [lon + dLon * Math.sin(a), lat + dLat * Math.cos(a)];
   });
+  return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] } };
+}
+
+function radiusBounds(lat, lon, km) {
+  const { dLat, dLon } = kmOffsets(lat, km);
+  return [[lon - dLon, lat - dLat], [lon + dLon, lat + dLat]];
+}
+
+function showRadiusCircle(lat, lon, km) {
+  const data = circlePolygon(lat, lon, km);
+  const src = map.getSource('radius-circle');
+  if (src) {
+    src.setData(data);
+  } else {
+    map.addSource('radius-circle', { type: 'geojson', data });
+    map.addLayer({ id: 'radius-fill', type: 'fill', source: 'radius-circle',
+      paint: { 'fill-color': '#2ea3f2', 'fill-opacity': 0.07 } });
+    map.addLayer({ id: 'radius-stroke', type: 'line', source: 'radius-circle',
+      paint: { 'line-color': '#2ea3f2', 'line-width': 2 } });
+  }
+}
+
+function removeRadiusCircle() {
+  if (map.getSource('radius-circle')) {
+    map.removeLayer('radius-fill');
+    map.removeLayer('radius-stroke');
+    map.removeSource('radius-circle');
+  }
 }
 
 const markers = {};
+
+let openPopup = null;
+
+function showEventPopup(ev) {
+  const prev = openPopup;
+  openPopup = null;
+  if (prev) prev.remove();
+  openPopup = new maplibregl.Popup({ maxWidth: '340px', closeButton: false, anchor: 'bottom', offset: [0, -38], focusAfterOpen: false })
+    .setLngLat([ev.lon, ev.lat])
+    .setHTML(popupHtml(ev))
+    .addTo(map);
+  const _pc = openPopup.getElement()?.querySelector('.maplibregl-popup-content');
+  if (_pc) _pc.scrollTop = 0;
+  openPopup.on('close', () => {
+    if (!openPopup) return;
+    if (window.location.hash.slice(1) === encodeURIComponent(ev.id)) clearUrlHash();
+    openPopup = null;
+    if (activeId === ev.id) {
+      activeId = null;
+      const r = tbl.getRow(ev.id);
+      if (r) r.reformat();
+    }
+  });
+}
 
 function fmtDateDe(iso) {
   if (!iso) return '';
@@ -395,7 +485,7 @@ function icsDownload(ev) {
   URL.revokeObjectURL(a.href);
 }
 
-function popupHtml(ev) {
+function popupBodyHtml(ev) {
   const distParts = [
     ev.efr && `EFR ${ev.efr}`, ev.kdr && `KDR ${ev.kdr}`,
     ev.mdr && `MDR ${ev.mdr}`, ev.ldr && `LDR ${ev.ldr}`,
@@ -403,43 +493,55 @@ function popupHtml(ev) {
   ].filter(Boolean).join(' | ');
 
   let h = '';
-  if (ev.ritt_bild) h += `<img class="popup-img" src="${WIKI_FILE}${encodeURIComponent(ev.ritt_bild)}" alt="" fetchpriority="high">`;
+  if (ev.ritt_bild) h += `<div class="popup-img" style="background-image:url(${WIKI_FILE}${encodeURIComponent(ev.ritt_bild)})"></div>`;
 
-  h += `<div class="popup-name">${ev.name || ev.wiki_title}`;
-  if (ev.subtitle) h += ` <small style="font-weight:400">${ev.subtitle}</small>`;
-  h += `</div>`;
-
+  const status = ev.status && ev.status !== 'steht fest' ? ev.status : null;
   for (const [label, val] of [
-    ['Datum', dateRange(ev)], ['Region', ev.region], ['Ort', ev.venue],
-    ['Veranstalter', ev.organizer], ['Art', ev.event_types],
-    ['Distanzen', distParts], ['Status', ev.status], ['Seit', ev.first_edition_year],
+    ['Datum', dateRange(ev)], ['Status', status], ['Distanzen', distParts],
+    ['Region', ev.region], ['Ort', ev.venue],
+    ['Veranstalter', ev.organizer], ['Art', ev.event_types], ['Seit', ev.first_edition_year],
   ]) {
     if (val) h += `<div class="popup-row"><span class="popup-label">${label}: </span>${val}</div>`;
   }
 
-  const docs = [
-    pdfLink(ev.announcement_pdf, 'Ausschreibung', ev.announcement_updated),
-    pdfLink(ev.results_pdf,      'Ergebnisliste', false),
-    pdfLink(ev.registration_pdf, 'Nennformular',  false),
-    ev.start_date ? `<a class="popup-doc popup-doc-ics" href="javascript:void(0)" onclick="icsDownload(EVENTS.find(e=>e.id==='${ev.id}'))">Kalender</a>` : '',
-  ].filter(Boolean).join('');
-  if (docs) h += `<div class="popup-docs">${docs}</div>`;
 
   const siteUrl = safeUrl(ev.website);
-  if (siteUrl) h += `<div class="popup-row" style="margin-top:4px"><a href="${siteUrl}" target="_blank" rel="noopener noreferrer">Website</a></div>`;
+  if (siteUrl) {
+    const siteLabel = siteUrl.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+    h += `<div class="popup-row"><span class="popup-label">Website: </span><a href="${siteUrl}" target="_blank" rel="noopener noreferrer">${escHtml(siteLabel)}</a></div>`;
+  }
   const link = ev.vdd_url || ev.wiki_url;
-  h += `<div style="margin-top:8px;display:flex;gap:12px;align-items:center">`;
-  if (link) h += `<a class="popup-link" style="margin:0" href="${link}" target="_blank">VDD-Seite &rarr;</a>`;
-  h += `<a class="popup-link" style="margin:0" href="javascript:void(0)" onclick="shareCurrentUrl(this)" data-label="🔗 Link teilen" data-copied="✓ Link kopiert">🔗 Link teilen</a>`;
-  h += `</div>`;
+  if (link) {
+    h += `<div style="margin-top:8px"><a class="popup-link" style="margin:0" href="${link}" target="_blank">VDD-Seite &rarr;</a></div>`;
+  }
   if (ev.bemerkung) h += `<div class="popup-note"><span class="popup-label">Bemerkung: </span>${escHtml(ev.bemerkung)}</div>`;
   return h;
+}
+
+function popupDocsHtml(ev) {
+  return [
+    pdfLink(ev.announcement_pdf, 'Ausschreibung', ev.announcement_updated),
+    pdfLink(ev.results_pdf,      'Ergebnisse',    false),
+    pdfLink(ev.registration_pdf, 'Nennung',        false),
+    ev.start_date ? `<a class="popup-doc popup-doc-ics" href="javascript:void(0)" data-ics-id="${escHtml(ev.id)}">Kalender</a>` : '',
+  ].filter(Boolean).join('');
+}
+
+const SHARE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>`;
+document.getElementById('popup-modal-share').innerHTML = SHARE_ICON;
+
+function popupHtml(ev) {
+  const name = escHtml(ev.name || ev.wiki_title);
+  const title = ev.subtitle ? `${name} <small style="font-weight:400;opacity:.85">${escHtml(ev.subtitle)}</small>` : name;
+  const docs = popupDocsHtml(ev);
+  const footer = docs ? `<div class="popup-footer">${docs}</div>` : '';
+  return `<div class="popup-header"><span class="popup-header-title">${title}</span><button class="popup-header-close" onclick="shareCurrentUrl(this)" title="Link teilen" data-copied="✓">${SHARE_ICON}</button><button class="popup-header-close" onclick="if(openPopup)openPopup.remove()" title="Schließen">✕</button></div><div class="popup-body">${popupBodyHtml(ev)}</div>${footer}`;
 }
 
 // ── filter logic ───────────────────────────────────────────────────────────
 let filterText = '';
 let userLat = null, userLon = null, radiusKm = 300;
-let userMarker = null, radiusCircle = null;
+let userMarker = null;
 let selectedRegion = '';
 let selectedEventTypes = new Set();
 let selectedDistances = new Set();
@@ -550,7 +652,7 @@ function initTable(data) {
       { title: "Ausschreibung",     field: "announcement_pdf",   formatter: fmtPdf("announcement_pdf", "announcement_updated"), sorter: false, width: 40, headerTooltip: "Ausschreibung (PDF)" },
       { title: "Ergebnisliste",     field: "results_pdf",        formatter: fmtPdf("results_pdf", null),                      sorter: false, width: 40, headerTooltip: "Ergebnisliste (PDF)" },
       { title: "Nennformular",      field: "registration_pdf",   formatter: fmtPdf("registration_pdf", null),                 sorter: false, width: 40, headerTooltip: "Nennformular (PDF)" },
-      { title: "Kalender",          field: "start_date",         formatter: fmtIcs,                                           sorter: false, width: 40, headerTooltip: "Termin als ICS-Datei herunterladen" },
+      { title: "Kalender",          field: "start_date",         formatter: fmtIcs,                                           sorter: false, width: 40, headerTooltip: "Termin als ICS-Datei herunterladen" , headerSort: false},
       { title: "Geändert",          field: "wiki_touched",        formatter: cell => fmtDateDe(cell.getValue()), width: 80, headerTooltip: "Letzte Änderung auf der VDD-Wiki-Seite" },
       { title: "Seit",              field: "first_edition_year", sorter: "number" },
       { title: "Website",           field: "website",            formatter: fmtLink,                                          sorter: false, width: 160 },
@@ -572,7 +674,7 @@ function initTable(data) {
 
   tbl.on("tableBuilt", () => {
     applyFilters();
-    map.invalidateSize();
+    map.resize();
     fitVisibleMarkers();
     const hash = window.location.hash.slice(1);
     if (hash) {
@@ -583,14 +685,7 @@ function initTable(data) {
 
   tbl.on("rowClick", (_e, row) => focusEvent(row.getData()));
 
-  tbl.on("rowMouseEnter", (_e, row) => {
-    const d = row.getData();
-    if (d.ritt_bild && !imgCache[d.id]) {
-      const img = new Image();
-      img.src = WIKI_FILE + encodeURIComponent(d.ritt_bild);
-      imgCache[d.id] = img;
-    }
-  });
+  tbl.on("rowMouseEnter", (_e, row) => { preloadImg(row.getData()); });
 
   tbl.on("dataFiltered", (_filters, rows) => {
     const visibleIds = new Set(rows.map(r => r.getData().id));
@@ -612,14 +707,12 @@ function showModalPopup(ev) {
   const title = document.getElementById('popup-modal-title');
   const body = document.getElementById('popup-modal-body');
   
-  const name = ev.name || ev.wiki_title;
-  title.textContent = name;
-  
-  // Get full popup HTML and remove the duplicate name section
-  let html = popupHtml(ev);
-  html = html.replace(/<div class="popup-name">.*?<\/div>/s, '');
-  body.innerHTML = html;
-  
+  title.textContent = ev.name || ev.wiki_title;
+  body.innerHTML = popupBodyHtml(ev);
+  const docs = popupDocsHtml(ev);
+  const footer = document.getElementById('popup-modal-footer');
+  footer.innerHTML = docs;
+  footer.style.display = docs ? '' : 'none';
   modal.classList.add('show');
 }
 
@@ -643,9 +736,9 @@ function shareCurrentUrl(feedbackEl) {
   } else {
     navigator.clipboard.writeText(url).then(() => {
       if (feedbackEl) {
-        const orig = feedbackEl.dataset.label || feedbackEl.textContent;
-        feedbackEl.textContent = feedbackEl.dataset.copied || '✓ Link kopiert';
-        setTimeout(() => { feedbackEl.textContent = orig; }, 1500);
+        const orig = feedbackEl.dataset.label || feedbackEl.innerHTML;
+        feedbackEl.innerHTML = feedbackEl.dataset.copied || '✓ Link kopiert';
+        setTimeout(() => { feedbackEl.innerHTML = orig; }, 1500);
       }
     });
   }
@@ -659,6 +752,11 @@ document.getElementById('popup-modal-share').addEventListener('click', e => {
 // close modal when clicking outside
 document.getElementById('popup-modal').addEventListener('click', e => {
   if (e.target.id === 'popup-modal') hideModalPopup();
+});
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-ics-id]');
+  if (btn) icsDownload(EVENTS.find(ev => ev.id === btn.dataset.icsId));
 });
 
 function highlightRow(id) {
@@ -676,21 +774,17 @@ function focusEvent(ev) {
     if (isMobileViewport()) {
       showModalPopup(ev);
     } else {
-      const marker = markers[ev.id];
-      const popup = marker.getPopup();
-      map.once('moveend', () => {
-        popup.options.autoPan = false;
-        marker.openPopup();
-        // Restore hash: popupclose on the previous popup fires during openPopup()
-        // and calls clearUrlHash(), wiping the hash we just set.
-        history.replaceState(null, '', '#' + encodeURIComponent(ev.id));
-        popup.options.autoPan = true;
-        // Re-run _adjustPan now that autoPan is re-enabled; without this the
-        // popup can open partially above the visible map area because autoPan
-        // was suppressed during openPopup() to prevent a double-pan animation.
-        requestAnimationFrame(() => popup.update());
+      requestAnimationFrame(() => {
+        showEventPopup(ev);
+        requestAnimationFrame(() => {
+          const _mapH = map.getContainer().clientHeight;
+          const _popupEl = openPopup?.getElement();
+          const _popupH = _popupEl ? _popupEl.getBoundingClientRect().height : 250;
+          const _needed = 15 + _popupH + 38;
+          const _topPad = Math.max(15, Math.min(2 * _needed - _mapH, _mapH - 50));
+          map.flyTo({ center: [ev.lon, ev.lat], zoom: map.getZoom(), padding: { top: _topPad } });
+        });
       });
-      map.setView([ev.lat, ev.lon], Math.max(map.getZoom(), 10), { animate: true });
     }
   }
 }
@@ -775,7 +869,7 @@ searchClearBtn.addEventListener('click', () => {
   searchEl.focus();
 });
 
-const GERMANY_BOUNDS = [[47.2, 5.8], [55.1, 15.1]];
+const GERMANY_BOUNDS = [[5.8, 47.2], [15.1, 55.1]];
 
 function fitVisibleMarkers() {
   map.fitBounds(GERMANY_BOUNDS);
@@ -783,8 +877,8 @@ function fitVisibleMarkers() {
 
 function clearRadius() {
   userLat = null; userLon = null;
-  if (userMarker)   { userMarker.remove();   userMarker = null; }
-  if (radiusCircle) { radiusCircle.remove(); radiusCircle = null; }
+  if (userMarker)   { userMarker.remove(); userMarker = null; }
+  removeRadiusCircle();
   const btn = document.getElementById('btn-locate');
   btn.classList.remove('active');
   btn.textContent = '📍 Standort';
@@ -811,26 +905,23 @@ document.getElementById('btn-locate').addEventListener('click', () => {
     filterText = '';
     document.getElementById('search').value = '';
     document.getElementById('search-clear').style.display = 'none';
-    if (userMarker)   { userMarker.remove();   userMarker = null; }
-    if (radiusCircle) { radiusCircle.remove(); radiusCircle = null; }
+    if (userMarker) { userMarker.remove(); userMarker = null; }
+    removeRadiusCircle();
 
-    userMarker = L.marker([userLat, userLon], {
-      icon: L.divIcon({
-        className: '',
-        html: '<div style="width:14px;height:14px;border-radius:50%;background:#2ea3f2;border:3px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.5)"></div>',
-        iconSize: [14, 14], iconAnchor: [7, 7]
-      }),
-      zIndexOffset: 1000
-    }).addTo(map).bindPopup(`Mein Standort<br><small>Genauigkeit: ±${Math.round(accuracy)} m</small>`);
+    const userEl = document.createElement('div');
+    userEl.style.cssText = 'width:14px;height:14px;border-radius:50%;background:#2ea3f2;border:3px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.5);cursor:default';
+    const userPopup = new maplibregl.Popup({ offset: 7 })
+      .setHTML(`Mein Standort<br><small>Genauigkeit: ±${Math.round(accuracy)} m</small>`);
+    userMarker = new maplibregl.Marker({ element: userEl })
+      .setLngLat([userLon, userLat])
+      .setPopup(userPopup)
+      .addTo(map);
 
     radiusKm = +document.getElementById('radius-slider').value || 300;
-    radiusCircle = L.circle([userLat, userLon], {
-      radius: radiusKm * 1000, color: '#2ea3f2', weight: 2,
-      fillColor: '#2ea3f2', fillOpacity: 0.07
-    }).addTo(map);
+    showRadiusCircle(userLat, userLon, radiusKm);
 
-    map.invalidateSize();
-    map.fitBounds(radiusCircle.getBounds());
+    map.resize();
+    map.fitBounds(radiusBounds(userLat, userLon, radiusKm));
     btn.textContent = '✕ Löschen';
     btn.disabled = false;
     btn.classList.add('active');
@@ -846,9 +937,9 @@ document.getElementById('btn-locate').addEventListener('click', () => {
 document.getElementById('radius-slider').addEventListener('input', e => {
   radiusKm = +e.target.value;
   document.getElementById('radius-label').textContent = radiusKm + ' km';
-  if (radiusCircle) {
-    radiusCircle.setRadius(radiusKm * 1000);
-    map.fitBounds(radiusCircle.getBounds());
+  if (userLat !== null) {
+    showRadiusCircle(userLat, userLon, radiusKm);
+    map.fitBounds(radiusBounds(userLat, userLon, radiusKm));
     applyFilters();
   }
 });
@@ -934,39 +1025,11 @@ document.getElementById('radius-slider').addEventListener('input', e => {
 
   EVENTS.forEach(ev => {
     if (ev.lat && ev.lon) {
-      const m = L.marker([ev.lat, ev.lon], { icon: makeIcon(markerColor(ev)) })
-        .bindPopup(popupHtml(ev), { maxWidth: 340, maxHeight: 400 });
-      m.on('mouseover', () => {
-        if (ev.ritt_bild && !imgCache[ev.id]) {
-          const img = new Image();
-          img.src = WIKI_FILE + encodeURIComponent(ev.ritt_bild);
-          imgCache[ev.id] = img;
-        }
-      });
-      m.on('click', () => focusEvent(ev));
-      markers[ev.id] = m;
-    }
-  });
-
-  map.on('popupclose', e => {
-    const closingId = Object.keys(markers).find(id => markers[id].getPopup() === e.popup);
-    const currentHash = decodeURIComponent(window.location.hash.slice(1));
-    if (!closingId || currentHash === closingId) {
-      clearUrlHash();
-      if (activeId) {
-        const prevId = activeId;
-        activeId = null;
-        const r = tbl.getRow(prevId);
-        if (r) r.reformat();
-      }
-    }
-  });
-
-  map.on('popupopen', e => {
-    const img = e.popup.getElement()?.querySelector('.popup-img');
-    if (img && !img.complete) {
-      img.addEventListener('load', () => e.popup.update(), { once: true });
-      img.addEventListener('error', () => e.popup.update(), { once: true });
+      const el = makeMarkerEl(markerColor(ev));
+      el.addEventListener('mouseover', () => preloadImg(ev));
+      el.addEventListener('click', () => focusEvent(ev));
+      markers[ev.id] = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([ev.lon, ev.lat]);
     }
   });
 
