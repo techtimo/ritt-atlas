@@ -638,13 +638,17 @@ document.getElementById('popup-modal-close').addEventListener('click', hideModal
 
 function shareCurrentUrl(feedbackEl) {
   const url = window.location.origin + window.location.pathname + window.location.hash;
-  navigator.clipboard.writeText(url).then(() => {
-    if (feedbackEl) {
-      const orig = feedbackEl.dataset.label || feedbackEl.textContent;
-      feedbackEl.textContent = feedbackEl.dataset.copied || '✓ Link kopiert';
-      setTimeout(() => { feedbackEl.textContent = orig; }, 1500);
-    }
-  });
+  if (navigator.share) {
+    navigator.share({ url }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(url).then(() => {
+      if (feedbackEl) {
+        const orig = feedbackEl.dataset.label || feedbackEl.textContent;
+        feedbackEl.textContent = feedbackEl.dataset.copied || '✓ Link kopiert';
+        setTimeout(() => { feedbackEl.textContent = orig; }, 1500);
+      }
+    });
+  }
 }
 
 // share button handler
