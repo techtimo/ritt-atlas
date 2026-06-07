@@ -414,7 +414,9 @@ class MiniTable {
     table.appendChild(this.#tbody);
     wrap.appendChild(table);
 
-    this.#getSorted(this.#data).forEach(d => this.#appendRow(d));
+    const frag = document.createDocumentFragment();
+    this.#getSorted(this.#data).forEach(d => this.#appendRow(d, frag));
+    this.#tbody.appendChild(frag);
     this.#updateArrows();
     setTimeout(() => this.#emit('tableBuilt'), 0);
   }
@@ -454,7 +456,7 @@ class MiniTable {
     };
   }
 
-  #appendRow(d) {
+  #appendRow(d, container = this.#tbody) {
     const tr = document.createElement('tr');
     let frozenPx = 0;
     this.#cols.forEach(col => {
@@ -472,7 +474,7 @@ class MiniTable {
     tr.addEventListener('mouseenter', e => this.#emit('rowMouseEnter', e, this.#rowProxy(tr, d)));
     this.#rowMap.set(d[this.#idx], { tr, data: d });
     if (this.#rowFmt) this.#rowFmt(this.#rowProxy(tr, d));
-    this.#tbody.appendChild(tr);
+    container.appendChild(tr);
   }
 
   #reapply() {
