@@ -41,8 +41,13 @@
         </div>
         <div id="loc-controls">
           <button id="btn-locate">&#x1F4CD; Standort</button>
-          <input id="radius-slider" type="range" min="50" max="500" step="50" value="250">
-          <span id="radius-label">250 km</span>
+          <div id="iso-time-btns" style="display:none">
+            <button class="tog iso-t active" data-min="300">5h</button>
+            <button class="tog iso-t" data-min="240">4h</button>
+            <button class="tog iso-t" data-min="180">3h</button>
+            <button class="tog iso-t" data-min="120">2h</button>
+            <button class="tog iso-t" data-min="60">1h</button>
+          </div>
         </div>
         <span id="count"></span>
       </div>

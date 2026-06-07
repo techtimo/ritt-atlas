@@ -71,50 +71,101 @@ function makeMarkerEl(color) {
   return _markerElCache[color].cloneNode(true);
 }
 
-function kmOffsets(lat, km) {
-  const dLat = km / 111.32;
-  return { dLat, dLon: km / (111.32 * Math.cos(lat * Math.PI / 180)) };
+const ISO_BASE = '../germany-isochrones/';
+const ISO_COLORS = { 60: '#2166ac', 120: '#74add1', 180: '#abd9e9', 240: '#fdae61', 300: '#d73027' };
+const ISO_BANDS  = [300, 240, 180, 120, 60];
+
+function pointInRing(px, py, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi)
+      inside = !inside;
+  }
+  return inside;
 }
 
-function circlePolygon(lat, lon, km, n = 64) {
-  const { dLat, dLon } = kmOffsets(lat, km);
-  const coords = Array.from({ length: n + 1 }, (_, i) => {
-    const a = (i / n) * 2 * Math.PI;
-    return [lon + dLon * Math.sin(a), lat + dLat * Math.cos(a)];
+function pointInPolygon(lon, lat, geom) {
+  if (geom.type === 'Polygon')      return pointInRing(lon, lat, geom.coordinates[0]);
+  if (geom.type === 'MultiPolygon') return geom.coordinates.some(p => pointInRing(lon, lat, p[0]));
+  return false;
+}
+
+function eventInIsochrone(ev) {
+  if (!ev.lat || !ev.lon || !isoData) return false;
+  const feat = isoData.features.find(f => f.properties.contour_min === isoContourMin);
+  return feat ? pointInPolygon(+ev.lon, +ev.lat, feat.geometry) : false;
+}
+
+function isochroneBounds() {
+  if (!isoData) return null;
+  const feat = isoData.features.find(f => f.properties.contour_min === isoContourMin);
+  if (!feat) return null;
+  let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+  const visit = c => {
+    if (Array.isArray(c[0])) { c.forEach(visit); }
+    else { if (c[0] < minLon) minLon = c[0]; if (c[0] > maxLon) maxLon = c[0]; if (c[1] < minLat) minLat = c[1]; if (c[1] > maxLat) maxLat = c[1]; }
+  };
+  visit(feat.geometry.coordinates);
+  return [[minLon, minLat], [maxLon, maxLat]];
+}
+
+function updateIsoVisibility() {
+  ISO_BANDS.forEach(band => {
+    const v = band <= isoContourMin ? 'visible' : 'none';
+    if (map.getLayer(`iso-fill-${band}`)) map.setLayoutProperty(`iso-fill-${band}`, 'visibility', v);
+    if (map.getLayer(`iso-line-${band}`)) map.setLayoutProperty(`iso-line-${band}`, 'visibility', v);
   });
-  return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] } };
 }
 
-const INIT_BOUNDS = [[6.0259, 47.5733], [14.5152, 54.4286]];
-
-function radiusBounds(lat, lon, km) {
-  const { dLat, dLon } = kmOffsets(lat, km);
-  return [
-    [Math.max(lon - dLon, INIT_BOUNDS[0][0]), Math.max(lat - dLat, INIT_BOUNDS[0][1])],
-    [Math.min(lon + dLon, INIT_BOUNDS[1][0]), Math.min(lat + dLat, INIT_BOUNDS[1][1])],
-  ];
-}
-
-function showRadiusCircle(lat, lon, km) {
-  const data = circlePolygon(lat, lon, km);
-  const src = map.getSource('radius-circle');
+function showIsochrone(fc) {
+  isoData = fc;
+  const src = map.getSource('iso');
   if (src) {
-    src.setData(data);
+    src.setData(fc);
   } else {
-    map.addSource('radius-circle', { type: 'geojson', data });
-    map.addLayer({ id: 'radius-fill', type: 'fill', source: 'radius-circle',
-      paint: { 'fill-color': '#2ea3f2', 'fill-opacity': 0.07 } });
-    map.addLayer({ id: 'radius-stroke', type: 'line', source: 'radius-circle',
-      paint: { 'line-color': '#2ea3f2', 'line-width': 2 } });
+    map.addSource('iso', { type: 'geojson', data: fc });
+    ISO_BANDS.forEach(band => {
+      map.addLayer({ id: `iso-fill-${band}`, type: 'fill', source: 'iso',
+        filter: ['==', ['get', 'contour_min'], band],
+        paint: { 'fill-color': ISO_COLORS[band], 'fill-opacity': 0.18 } });
+      map.addLayer({ id: `iso-line-${band}`, type: 'line', source: 'iso',
+        filter: ['==', ['get', 'contour_min'], band],
+        paint: { 'line-color': ISO_COLORS[band], 'line-width': 1.5, 'line-opacity': 0.85 } });
+    });
   }
+  updateIsoVisibility();
 }
 
-function removeRadiusCircle() {
-  if (map.getSource('radius-circle')) {
-    map.removeLayer('radius-fill');
-    map.removeLayer('radius-stroke');
-    map.removeSource('radius-circle');
+function removeIsochrone() {
+  isoData = null;
+  if (map.getSource('iso')) map.getSource('iso').setData({ type: 'FeatureCollection', features: [] });
+}
+
+async function loadIsochrone(lat, lon) {
+  let origins;
+  try {
+    const r = await fetch(ISO_BASE + 'origins_index.json');
+    if (!r.ok) return;
+    origins = await r.json();
+  } catch { return; }
+
+  let best = null, bestDist = Infinity;
+  for (const o of origins) {
+    const d = haversineKm(lat, lon, o.lat, o.lon);
+    if (d < bestDist) { bestDist = d; best = o; }
   }
+  if (!best) return;
+
+  try {
+    const r = await fetch(ISO_BASE + `checkpoints/${best.origin_id}.json`);
+    if (!r.ok) return;
+    const fc = await r.json();
+    showIsochrone(fc);
+    const bounds = isochroneBounds();
+    if (bounds) map.fitBounds(bounds, { padding: 25 });
+    applyFilters();
+  } catch { return; }
 }
 
 const markers = {};
@@ -287,7 +338,9 @@ function popupHtml(ev) {
 
 // ── filter logic ───────────────────────────────────────────────────────────
 let filterText = '';
-let userLat = null, userLon = null, radiusKm = 250;
+let userLat = null, userLon = null;
+let isoContourMin = 300;
+let isoData = null;
 let userMarker = null;
 let selectedRegion = '';
 let selectedEventTypes = new Set();
@@ -319,8 +372,7 @@ function eventVisible(ev) {
             ev.event_types, ev.organizer, ev.status]
       .some(v => v && v.toLowerCase().includes(q));
   } else if (userLat !== null) {
-    if (!ev.lat || !ev.lon) return false;
-    return haversineKm(userLat, userLon, ev.lat, ev.lon) <= radiusKm;
+    return eventInIsochrone(ev);
   }
   return true;
 }
@@ -794,7 +846,8 @@ function fitVisibleMarkers() {
 function clearRadius() {
   userLat = null; userLon = null;
   if (userMarker) { userMarker.remove(); userMarker = null; }
-  removeRadiusCircle();
+  removeIsochrone();
+  document.getElementById('iso-time-btns').style.display = 'none';
   const btn = document.getElementById('btn-locate');
   btn.classList.remove('active');
   btn.textContent = '📍 Standort';
@@ -815,7 +868,7 @@ document.getElementById('btn-locate').addEventListener('click', () => {
     document.getElementById('search').value = '';
     document.getElementById('search-clear').style.display = 'none';
     if (userMarker) { userMarker.remove(); userMarker = null; }
-    removeRadiusCircle();
+    removeIsochrone();
 
     const userEl = document.createElement('div');
     userEl.style.cssText = 'width:14px;height:14px;border-radius:50%;background:#2ea3f2;border:3px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.5);cursor:default';
@@ -826,10 +879,9 @@ document.getElementById('btn-locate').addEventListener('click', () => {
       .setPopup(userPopup)
       .addTo(map);
 
-    radiusKm = +document.getElementById('radius-slider').value || 250;
-    showRadiusCircle(userLat, userLon, radiusKm);
+    document.getElementById('iso-time-btns').style.display = '';
     map.resize();
-    map.fitBounds(radiusBounds(userLat, userLon, radiusKm), { padding: 25 });
+    loadIsochrone(userLat, userLon);
     btn.textContent = '✕ Löschen';
     btn.disabled = false;
     btn.classList.add('active');
@@ -841,14 +893,15 @@ document.getElementById('btn-locate').addEventListener('click', () => {
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 });
 
-document.getElementById('radius-slider').addEventListener('input', e => {
-  radiusKm = +e.target.value;
-  document.getElementById('radius-label').textContent = radiusKm + ' km';
-  if (userLat !== null) {
-    showRadiusCircle(userLat, userLon, radiusKm);
-    map.fitBounds(radiusBounds(userLat, userLon, radiusKm), { padding: 25 });
+document.querySelectorAll('.iso-t').forEach(btn => {
+  btn.addEventListener('click', () => {
+    isoContourMin = +btn.dataset.min;
+    document.querySelectorAll('.iso-t').forEach(b => b.classList.toggle('active', b === btn));
+    updateIsoVisibility();
     applyFilters();
-  }
+    const bounds = isochroneBounds();
+    if (bounds) map.fitBounds(bounds, { padding: 25 });
+  });
 });
 
 // ── data caching ───────────────────────────────────────────────────────────

@@ -73,7 +73,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .mtbl th.asc .sa::after { content: '▲'; opacity: 1; }
 .mtbl th.desc .sa::after { content: '▼'; opacity: 1; }
 .mtbl th.fr { z-index: 3; }
-.mtbl td { padding: 5px 7px; border-right: 1px solid #f0f0f0; border-bottom: 1px solid #eee; vertical-align: top; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mtbl td { padding: 2px; border-right: 1px solid #f0f0f0; border-bottom: 1px solid #eee; vertical-align: top; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mtbl td.fr { position: sticky; left: 0; background: #fff; z-index: 1; box-shadow: 2px 0 4px -2px rgba(0,0,0,.15); }
 .mtbl tr { cursor: pointer; }
 .mtbl tr:hover td { background: #fff8e1 !important; }
@@ -137,8 +137,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 #btn-locate:hover { background: #e8f0fe; }
 #btn-locate.active { background: #2ea3f2; color: #fff; border-color: #2ea3f2; }
 #btn-locate.active:hover { background: #d32f2f; border-color: #d32f2f; }
-#radius-slider { width: 100px; accent-color: #2ea3f2; cursor: pointer; }
-#radius-label { font-size: 12px; color: #555; white-space: nowrap; min-width: 52px; }
+#iso-time-btns { display: flex; gap: 3px; }
 
 /* ── mobile popup modal ── */
 #popup-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 10000; align-items: center; justify-content: center; }
