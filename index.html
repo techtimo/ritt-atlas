@@ -15,9 +15,8 @@
 <link rel="preconnect" href="https://sgx.geodatenzentrum.de" crossorigin>
 <link rel="preload" href="lib/maplibre-gl.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="lib/maplibre-gl.css"></noscript>
+<link rel="stylesheet" href="app.css">
 <link rel="preload" href="lib/maplibre-gl.js" as="script">
-<link rel="preload" href="app.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="app.css"></noscript>
 </head>
 <body>
 
@@ -30,6 +29,8 @@
     </div>
     <button id="btn-info" title="Über diesen Atlas">i</button>
   </div>
+
+  <div id="offline-banner">Offline – PDFs und Karte nicht verfügbar</div>
 
   <div id="split">
     <div id="left-pane">

@@ -38,8 +38,13 @@ const map = new maplibregl.Map({
 map.touchZoomRotate.disableRotation();
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 map.on('click', () => { if (openPopup) openPopup.remove(); });
-window.addEventListener('offline', () => map.setStyle(BLANK_STYLE));
-window.addEventListener('online',  () => map.setStyle(BASEMAP_STYLE));
+window.addEventListener('offline', () => { map.setStyle(BLANK_STYLE); setOfflineBanner(true); });
+window.addEventListener('online',  () => { map.setStyle(BASEMAP_STYLE); setOfflineBanner(false); });
+
+function setOfflineBanner(offline) {
+  document.getElementById('offline-banner').classList.toggle('show', offline);
+}
+setOfflineBanner(!navigator.onLine);
 
 function markerColor(ev) {
   if (ev.rittvorrat) return '#c62828';
@@ -615,6 +620,21 @@ document.getElementById('popup-modal-share').addEventListener('click', e => {
 document.getElementById('popup-modal').addEventListener('click', e => {
   if (e.target.id === 'popup-modal') hideModalPopup();
 });
+
+document.addEventListener('click', e => {
+  const link = e.target.closest('a.popup-doc:not(.popup-doc-ics), a.tbl-doc:not(.tbl-doc-ics)');
+  if (!link || navigator.onLine) return;
+  e.preventDefault();
+  e.stopPropagation();
+  document.getElementById('popup-modal-title').textContent = 'Offline – PDF nicht verfügbar';
+  document.getElementById('popup-modal-body').innerHTML =
+    '<p style="margin:0;line-height:1.5">PDFs können nur online geöffnet werden. ' +
+    'Bitte prüfe deine Internetverbindung und versuche es erneut.</p>';
+  const footer = document.getElementById('popup-modal-footer');
+  footer.innerHTML = '';
+  footer.style.display = 'none';
+  document.getElementById('popup-modal').classList.add('show');
+}, true);
 
 document.addEventListener('click', e => {
   const btn = e.target.closest('[data-ics-id]');
