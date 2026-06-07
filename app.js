@@ -22,9 +22,12 @@ let showVergangene = document.getElementById('show-vergangene').checked;
 const TODAY = new Date().toISOString().slice(0, 10);
 
 // ── map ────────────────────────────────────────────────────────────────────
+const BASEMAP_STYLE = 'https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_top.json';
+const BLANK_STYLE = { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#f8f8f8' } }] };
+
 const map = new maplibregl.Map({
   container: 'map',
-  style: 'https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_top.json',
+  style: navigator.onLine ? BASEMAP_STYLE : BLANK_STYLE,
   bounds: [[6.0259, 47.5733], [14.5152, 54.4286]],
   fitBoundsOptions: { padding: 25 },
   attributionControl: { compact: true },
@@ -35,6 +38,8 @@ const map = new maplibregl.Map({
 map.touchZoomRotate.disableRotation();
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 map.on('click', () => { if (openPopup) openPopup.remove(); });
+window.addEventListener('offline', () => map.setStyle(BLANK_STYLE));
+window.addEventListener('online',  () => map.setStyle(BASEMAP_STYLE));
 
 function markerColor(ev) {
   if (ev.rittvorrat) return '#c62828';
@@ -538,8 +543,7 @@ function initTable(data) {
 
   tbl.on("tableBuilt", () => {
     applyFilters();
-    map.resize();
-    fitVisibleMarkers();
+    requestAnimationFrame(() => { map.resize(); fitVisibleMarkers(); });
     const hash = window.location.hash.slice(1);
     if (hash) {
       const ev = EVENTS.find(e => e.id === decodeURIComponent(hash));

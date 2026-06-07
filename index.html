@@ -12,16 +12,16 @@
 
 <link rel="canonical" href="https://techtimo.github.io/vdd-rittatlas/">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<link rel="preconnect" href="https://sgx.geodatenzentrum.de">
-<link rel="preload" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css" as="style" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css" crossorigin="anonymous"></noscript>
-<link rel="preload" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js" as="script" crossorigin="anonymous">
-<link rel="stylesheet" href="app.css">
+<link rel="preconnect" href="https://sgx.geodatenzentrum.de" crossorigin>
+<link rel="preload" href="lib/maplibre-gl.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="lib/maplibre-gl.css"></noscript>
+<link rel="preload" href="lib/maplibre-gl.js" as="script">
+<link rel="preload" href="app.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="app.css"></noscript>
 </head>
 <body>
 
-<div id="app">
+<main id="app">
   <div id="header">
     <h1>VDD Rittatlas</h1>
     <div id="toggle-group">
@@ -74,7 +74,7 @@
       <div id="map"></div>
     </div>
   </div>
-</div>
+</main>
 
 <!-- info modal -->
 <div id="info-modal">
@@ -97,9 +97,8 @@
       <p><strong>Drittanbieter:</strong> Beim Laden der Seite werden Ressourcen von folgenden Diensten geladen, an die dabei Ihre IP-Adresse übermittelt wird:</p>
       <ul style="margin:4px 0 8px 16px;line-height:1.8">
         <li><a href="https://basemap.de" target="_blank" rel="noopener">basemap.de</a> / <a href="https://www.bkg.bund.de" target="_blank" rel="noopener">BKG</a> (sgx.geodatenzentrum.de) – Vektorkartenkacheln und Kartenstil</li>
-        <li><a href="https://www.jsdelivr.com" target="_blank" rel="noopener">jsDelivr</a> (cdn.jsdelivr.net) – JavaScript-Bibliothek MapLibre GL 5.24.0</li>
         <li><a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub</a> (github.io, api.github.com) – Hosting der Website und Prüfung des letzten Datenabgleichs</li>
-        <li><a href="https://vdd-aktuell.de" target="_blank" rel="noopener">VDD MediaWiki</a> – Veranstaltungsbilder und Dokumente</li>
+        <li><a href="https://vdd-aktuell.de" target="_blank" rel="noopener">VDD MediaWiki</a> – Veranstaltungsbilder und Dokumente (nur beim Öffnen einer Veranstaltung)</li>
       </ul>
       <p><strong>Standortdaten:</strong> Die Standortfunktion verarbeitet Ihren Standort ausschließlich lokal im Browser. Es werden keine Standortdaten übertragen.</p>
     </div>
@@ -119,7 +118,7 @@
   </div>
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js" crossorigin="anonymous"></script>
+<script defer src="lib/maplibre-gl.js"></script>
 <script defer src="app.js"></script>
 </body>
 </html>
