@@ -243,7 +243,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
       </table>
       <hr style="margin:14px 0;border:none;border-top:1px solid #eee">
       <p style="font-weight:600;margin-bottom:6px">Datenschutzerklärung</p>
-      <p>Diese Seite setzt <strong>keine Cookies</strong> und erstellt keine Nutzerprofile.</p>
+      <p>Diese Seite setzt <strong>keine Cookies</strong> und erstellt keine Nutzerprofile. Die öffentlichen Veranstaltungsdaten werden im <strong>lokalen Speicher</strong> (localStorage) Ihres Browsers gespeichert, um eine Offline-Nutzung zu ermöglichen. Es werden dabei keine personenbezogenen Daten gespeichert.</p>
       <p><strong>Drittanbieter:</strong> Beim Laden der Seite werden Ressourcen von folgenden Diensten geladen, an die dabei Ihre IP-Adresse übermittelt wird:</p>
       <ul style="margin:4px 0 8px 16px;line-height:1.8">
         <li><a href="https://basemap.de" target="_blank" rel="noopener">basemap.de</a> / <a href="https://www.bkg.bund.de" target="_blank" rel="noopener">BKG</a> (sgx.geodatenzentrum.de) – Vektorkartenkacheln und Kartenstil</li>
@@ -957,24 +957,34 @@ document.getElementById('radius-slider').addEventListener('input', e => {
 
 // ── data caching ───────────────────────────────────────────────────────────
 async function loadVddData() {
-  const KEY = 'vdd_d', TS = 'vdd_t';
-  const MAX_AGE = 3 * 60 * 60 * 1000;
+  const KEY = 'vdd_d', TS = 'vdd_t', SA = 'vdd_sa';
+  const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
   const now = Date.now();
+  let cached = null, ts = 0, cachedScrapedAt = null;
   try {
-    const cached = localStorage.getItem(KEY);
-    const ts = parseInt(localStorage.getItem(TS) || '0', 10);
-    if (cached && (now - ts) < MAX_AGE) {
-      return { data: JSON.parse(cached), fromCache: true, cacheTs: ts };
+    cached = localStorage.getItem(KEY);
+    ts = parseInt(localStorage.getItem(TS) || '0', 10);
+    cachedScrapedAt = localStorage.getItem(SA);
+    const offline = !navigator.onLine;
+    if (cached && (offline || (now - ts) < MAX_AGE)) {
+      return { data: JSON.parse(cached), fromCache: true, cacheTs: ts, cachedScrapedAt };
     }
   } catch(e) {
-    try { localStorage.removeItem(KEY); localStorage.removeItem(TS); } catch(_) {}
+    try { localStorage.removeItem(KEY); localStorage.removeItem(TS); localStorage.removeItem(SA); } catch(_) {}
+    cached = null;
   }
-  const data = await fetch('data.min.json').then(r => r.json());
   try {
-    localStorage.setItem(KEY, JSON.stringify(data));
-    localStorage.setItem(TS, String(now));
-  } catch(_) {}
-  return { data, fromCache: false, cacheTs: now };
+    const data = await fetch('data.min.json').then(r => r.json());
+    try {
+      localStorage.setItem(KEY, JSON.stringify(data));
+      localStorage.setItem(TS, String(now));
+      localStorage.setItem(SA, data.scraped_at || '');
+    } catch(_) {}
+    return { data, fromCache: false, cacheTs: now, cachedScrapedAt: data.scraped_at || null };
+  } catch(fetchErr) {
+    if (cached) return { data: JSON.parse(cached), fromCache: true, cacheTs: ts, cachedScrapedAt };
+    throw fetchErr;
+  }
 }
 
 // ── load data ──────────────────────────────────────────────────────────────
@@ -986,9 +996,9 @@ async function loadVddData() {
     document.getElementById('search-clear').style.display = 'block';
   }
 
-  let _vd, fromCache, cacheTs;
+  let _vd, fromCache, cacheTs, cachedScrapedAt;
   try {
-    ({ data: _vd, fromCache, cacheTs } = await loadVddData());
+    ({ data: _vd, fromCache, cacheTs, cachedScrapedAt } = await loadVddData());
   } catch(e) {
     document.getElementById('grid').innerHTML =
       `<p style="padding:1.5rem;color:#c00">Daten konnten nicht geladen werden.<br>${e.message}</p>`;
@@ -1033,9 +1043,11 @@ async function loadVddData() {
         fetch('data.min.json', { cache: 'no-store' })
           .then(r => r.json())
           .then(fresh => {
+            if (fresh.scraped_at === cachedScrapedAt) return;
             try {
               localStorage.setItem('vdd_d', JSON.stringify(fresh));
               localStorage.setItem('vdd_t', String(Date.now()));
+              localStorage.setItem('vdd_sa', fresh.scraped_at || '');
             } catch(_) {}
           })
           .catch(() => {});
