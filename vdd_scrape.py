@@ -2,7 +2,6 @@ import requests
 import json
 import sys
 import time
-import re
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo  # requires 'tzdata' package on Windows
 
@@ -10,7 +9,8 @@ NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 NOMINATIM_HEADERS = {"User-Agent": "VDD-Distanzwettbewerbe-Scraper/1.0 (giese.timo@gmail.com)"}
 
 API_URL = "https://vdd-aktuell.de/mediawiki/api.php"
-DATA_PATH = "data.js"
+DATA_PATH     = "data.json"
+DATA_MIN_PATH = "data.min.json"
 
 PROPS = (
     "|?Startdatum#ISO"
@@ -297,27 +297,25 @@ def main():
     else:
         scraped_at = datetime.now(tz=ZoneInfo("Europe/Berlin")).strftime("%Y-%m-%d %H:%M:%S")
 
-    payload = json.dumps({"scraped_at": scraped_at, "events": events}, ensure_ascii=False, indent=2)
+    data = {"scraped_at": scraped_at, "events": events}
     with open(DATA_PATH, "w", encoding="utf-8") as f:
-        f.write(f"const VDD_DATA = {payload};\n")
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    with open(DATA_MIN_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
 
     active = sum(1 for e in events if not e["rittvorrat"])
     vorrat = sum(1 for e in events if e["rittvorrat"])
     pins   = sum(1 for e in events if e.get("lat"))
-    print(f"\nGenerated {DATA_PATH}: {active} active + {vorrat} Rittvorrat = {len(events)} total "
+    print(f"\nGenerated {DATA_PATH} + {DATA_MIN_PATH}: {active} active + {vorrat} Rittvorrat = {len(events)} total "
           f"({pins} with pins, {len(to_geocode)} Nominatim lookups)")
 
 
 def _read_existing_data():
     try:
         with open(DATA_PATH, "r", encoding="utf-8") as f:
-            content = f.read()
-        m = re.search(r'const VDD_DATA\s*=\s*(\{.+\})\s*;', content, re.DOTALL)
-        if m:
-            return json.loads(m.group(1))
+            return json.load(f)
     except Exception:
-        pass
-    return None
+        return None
 
 
 def read_last_scraped_at():
@@ -354,7 +352,7 @@ if __name__ == "__main__":
     if "--check-only" in sys.argv:
         last = read_last_scraped_at()
         if not last:
-            print("true")  # no data.js yet
+            print("true")  # no data.json yet
         else:
             print("true" if has_wiki_changes(last) else "false")
     else:

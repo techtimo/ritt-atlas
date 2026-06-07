@@ -11,9 +11,16 @@
 <meta property="og:description" content="Interaktive Karte und Tabelle aller VDD-Distanzritte in Deutschland. Filtern nach Region, Distanz, Typ und Entfernung vom Standort">
 
 <link rel="canonical" href="https://techtimo.github.io/vdd-rittatlas/">
-<link rel="icon" href="https://vdd-aktuell.de/favicon.ico">
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" crossorigin="anonymous"/>
-<link rel="stylesheet" href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" integrity="sha384-V4N7xA98XpwXEziukVT23ibnUCmr8LbIxUQpT4PSUD3yp1TgQyMvrAAelVOuO0C0" crossorigin="anonymous"/>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" href="favicon.svg">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://sgx.geodatenzentrum.de" crossorigin>
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.css" as="style" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.css" crossorigin="anonymous"></noscript>
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" as="style" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" crossorigin="anonymous"></noscript>
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.js" as="script" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/js/tabulator.min.js" as="script" crossorigin="anonymous">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #333; background: #f3f3f3; }
@@ -183,8 +190,8 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
         </div>
         <div id="loc-controls">
           <button id="btn-locate">&#x1F4CD; Standort</button>
-          <input id="radius-slider" type="range" min="50" max="500" step="50" value="300">
-          <span id="radius-label">300 km</span>
+          <input id="radius-slider" type="range" min="50" max="500" step="50" value="250">
+          <span id="radius-label">250 km</span>
         </div>
         <span id="count"></span>
       </div>
@@ -236,16 +243,15 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
       </table>
       <hr style="margin:14px 0;border:none;border-top:1px solid #eee">
       <p style="font-weight:600;margin-bottom:6px">Datenschutzerklärung</p>
-      <p><strong>Verantwortlicher:</strong> Timo Giese</p>
       <p>Diese Seite setzt <strong>keine Cookies</strong> und erstellt keine Nutzerprofile.</p>
       <p><strong>Drittanbieter:</strong> Beim Laden der Seite werden Ressourcen von folgenden Diensten geladen, an die dabei Ihre IP-Adresse übermittelt wird:</p>
       <ul style="margin:4px 0 8px 16px;line-height:1.8">
-        <li><a href="https://basemap.de" target="_blank" rel="noopener">basemap.de</a> / <a href="https://www.bkg.bund.de" target="_blank" rel="noopener">BKG</a> – Vektorkartenkacheln (Relief-Stil)</li>
-        <li><a href="https://unpkg.com" target="_blank" rel="noopener">unpkg.com (Cloudflare)</a> – JavaScript-Bibliotheken</li>
-        <li><a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub</a> – Prüfung des letzten Datenabgleichs</li>
+        <li><a href="https://basemap.de" target="_blank" rel="noopener">basemap.de</a> / <a href="https://www.bkg.bund.de" target="_blank" rel="noopener">BKG</a> (sgx.geodatenzentrum.de) – Vektorkartenkacheln und Kartenstil</li>
+        <li><a href="https://www.jsdelivr.com" target="_blank" rel="noopener">jsDelivr</a> (cdn.jsdelivr.net) – JavaScript-Bibliotheken MapLibre GL 5 und Tabulator 6</li>
+        <li><a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub</a> (github.io, api.github.com) – Hosting der Website und Prüfung des letzten Datenabgleichs</li>
         <li><a href="https://vdd-aktuell.de" target="_blank" rel="noopener">VDD MediaWiki</a> – Veranstaltungsbilder und Dokumente</li>
       </ul>
-      <p><strong>Standortdaten:</strong> Die Standortfunktion verarbeitet Ihren Standort ausschließlich lokal im Browser. Es werden keine Standortdaten an uns oder Dritte übertragen.</p>
+      <p><strong>Standortdaten:</strong> Die Standortfunktion verarbeitet Ihren Standort ausschließlich lokal im Browser. Es werden keine Standortdaten übertragen.</p>
     </div>
   </div>
 </div>
@@ -263,9 +269,8 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
   </div>
 </div>
 
-<script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js" integrity="sha384-SKSq3cuuVWdfrjtLz9wNlqE0bMc903yMS5zGnFtwvfddplgxa1hywtiLyw1CbSHO" crossorigin="anonymous"></script>
-<script src="data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.3.1/dist/js/tabulator.min.js" crossorigin="anonymous"></script>
 <script>
 let EVENTS = [];
 const WIKI_FILE = "https://vdd-aktuell.de/mediawiki/index.php?title=Special:Redirect/file/";
@@ -294,8 +299,8 @@ const TODAY = new Date().toISOString().slice(0, 10);
 const map = new maplibregl.Map({
   container: 'map',
   style: 'https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_top.json',
-  center: [10.4, 51.2],
-  zoom: 6,
+  bounds: [[6.0259, 47.5733], [14.5152, 54.4286]],
+  fitBoundsOptions: { padding: 25 },
   attributionControl: { compact: true },
   pitchWithRotate: false,
   maxPitch: 0,
@@ -342,9 +347,14 @@ function circlePolygon(lat, lon, km, n = 64) {
   return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] } };
 }
 
+const INIT_BOUNDS = [[6.0259, 47.5733], [14.5152, 54.4286]];
+
 function radiusBounds(lat, lon, km) {
   const { dLat, dLon } = kmOffsets(lat, km);
-  return [[lon - dLon, lat - dLat], [lon + dLon, lat + dLat]];
+  return [
+    [Math.max(lon - dLon, INIT_BOUNDS[0][0]), Math.max(lat - dLat, INIT_BOUNDS[0][1])],
+    [Math.min(lon + dLon, INIT_BOUNDS[1][0]), Math.min(lat + dLat, INIT_BOUNDS[1][1])],
+  ];
 }
 
 function showRadiusCircle(lat, lon, km) {
@@ -540,7 +550,7 @@ function popupHtml(ev) {
 
 // ── filter logic ───────────────────────────────────────────────────────────
 let filterText = '';
-let userLat = null, userLon = null, radiusKm = 300;
+let userLat = null, userLon = null, radiusKm = 250;
 let userMarker = null;
 let selectedRegion = '';
 let selectedEventTypes = new Set();
@@ -869,10 +879,11 @@ searchClearBtn.addEventListener('click', () => {
   searchEl.focus();
 });
 
-const GERMANY_BOUNDS = [[5.8, 47.2], [15.1, 55.1]];
-
 function fitVisibleMarkers() {
-  map.fitBounds(GERMANY_BOUNDS);
+  const evs = EVENTS.filter(e => e.lat && e.lon);
+  if (!evs.length) return;
+  const lons = evs.map(e => e.lon), lats = evs.map(e => e.lat);
+  map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], { padding: 25 });
 }
 
 function clearRadius() {
@@ -917,11 +928,11 @@ document.getElementById('btn-locate').addEventListener('click', () => {
       .setPopup(userPopup)
       .addTo(map);
 
-    radiusKm = +document.getElementById('radius-slider').value || 300;
+    radiusKm = +document.getElementById('radius-slider').value || 250;
     showRadiusCircle(userLat, userLon, radiusKm);
 
     map.resize();
-    map.fitBounds(radiusBounds(userLat, userLon, radiusKm));
+    map.fitBounds(radiusBounds(userLat, userLon, radiusKm), { padding: 25 });
     btn.textContent = '✕ Löschen';
     btn.disabled = false;
     btn.classList.add('active');
@@ -939,13 +950,35 @@ document.getElementById('radius-slider').addEventListener('input', e => {
   document.getElementById('radius-label').textContent = radiusKm + ' km';
   if (userLat !== null) {
     showRadiusCircle(userLat, userLon, radiusKm);
-    map.fitBounds(radiusBounds(userLat, userLon, radiusKm));
+    map.fitBounds(radiusBounds(userLat, userLon, radiusKm), { padding: 25 });
     applyFilters();
   }
 });
 
+// ── data caching ───────────────────────────────────────────────────────────
+async function loadVddData() {
+  const KEY = 'vdd_d', TS = 'vdd_t';
+  const MAX_AGE = 3 * 60 * 60 * 1000;
+  const now = Date.now();
+  try {
+    const cached = localStorage.getItem(KEY);
+    const ts = parseInt(localStorage.getItem(TS) || '0', 10);
+    if (cached && (now - ts) < MAX_AGE) {
+      return { data: JSON.parse(cached), fromCache: true, cacheTs: ts };
+    }
+  } catch(e) {
+    try { localStorage.removeItem(KEY); localStorage.removeItem(TS); } catch(_) {}
+  }
+  const data = await fetch('data.min.json').then(r => r.json());
+  try {
+    localStorage.setItem(KEY, JSON.stringify(data));
+    localStorage.setItem(TS, String(now));
+  } catch(_) {}
+  return { data, fromCache: false, cacheTs: now };
+}
+
 // ── load data ──────────────────────────────────────────────────────────────
-(function () {
+(async function () {
   const initialQ = new URL(window.location.href).searchParams.get('q');
   if (initialQ) {
     filterText = initialQ;
@@ -953,7 +986,16 @@ document.getElementById('radius-slider').addEventListener('input', e => {
     document.getElementById('search-clear').style.display = 'block';
   }
 
-  const { events, scraped_at } = VDD_DATA;
+  let _vd, fromCache, cacheTs;
+  try {
+    ({ data: _vd, fromCache, cacheTs } = await loadVddData());
+  } catch(e) {
+    document.getElementById('grid').innerHTML =
+      `<p style="padding:1.5rem;color:#c00">Daten konnten nicht geladen werden.<br>${e.message}</p>`;
+    console.error(e);
+    return;
+  }
+  const { events, scraped_at } = _vd;
   EVENTS = events.map((ev, i) => {
     const strip = f => ev[f] ? String(ev[f]).replace(/\s+/g, '') : ev[f];
     return { ...ev, id: ev.id ?? ev.wiki_title ?? String(i), event_types_arr: (ev.event_types || '').split(',').map(s => s.trim()).filter(Boolean), efr: strip('efr'), kdr: strip('kdr'), mdr: strip('mdr'), ldr: strip('ldr'), mtr: strip('mtr'), cei: strip('cei') };
@@ -987,6 +1029,17 @@ document.getElementById('radius-slider').addEventListener('input', e => {
       else if (mins < 120) ago = 'vor 1 Std.';
       else                 ago = `vor ${Math.round(mins / 60)} Std.`;
       document.getElementById('info-geprueft').textContent = ago;
+      if (fromCache && new Date(run.updated_at).getTime() > cacheTs) {
+        fetch('data.min.json', { cache: 'no-store' })
+          .then(r => r.json())
+          .then(fresh => {
+            try {
+              localStorage.setItem('vdd_d', JSON.stringify(fresh));
+              localStorage.setItem('vdd_t', String(Date.now()));
+            } catch(_) {}
+          })
+          .catch(() => {});
+      }
     })
     .catch(() => {});
 
