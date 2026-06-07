@@ -47,10 +47,12 @@ function setOfflineBanner(offline) {
 setOfflineBanner(!navigator.onLine);
 
 function markerColor(ev) {
+  const isPast = (ev.end_date || ev.start_date) < TODAY;
+  if (isPast) return '#9e9e9e';
   if (ev.rittvorrat) return '#c62828';
   const s = (ev.status || '').toLowerCase();
-  if (s.includes('abgesagt')) return '#f9a825';
-  if (s.includes('vorl'))    return '#e65100';
+  if (s.includes('abgesagt')) return '#c62828';
+  if (s.includes('vorl'))    return '#f9a825';
   return '#2e7d32';
 }
 
@@ -324,6 +326,7 @@ function eventVisible(ev) {
 }
 
 function applyFilters() {
+  updateLegend();
   tbl.setFilter(eventVisible);
 }
 
@@ -333,6 +336,30 @@ function statusClass(s) {
   if (l.includes('abgesagt')) return 'status-abges';
   if (l.includes('vorl'))    return 'status-vorl';
   return 'status-fest';
+}
+
+function updateLegend() {
+  const bar = document.getElementById('legend-bar');
+  if (!bar) return;
+  const cats = new Set();
+  EVENTS.filter(eventVisible).forEach(d => {
+    const isPast = (d.end_date || d.start_date) < TODAY;
+    if (isPast) { cats.add('past'); return; }
+    if (d.rittvorrat || (d.status || '').toLowerCase().includes('abgesagt')) { cats.add('abgesagt'); return; }
+    if ((d.status || '').toLowerCase().includes('vorl')) { cats.add('vorl'); return; }
+    cats.add('fest');
+  });
+  const defs = [
+    { key: 'fest',     color: '#2e7d32', label: 'Steht fest' },
+    { key: 'vorl',     color: '#f9a825', label: 'Vorläufig' },
+    { key: 'abgesagt', color: '#c62828', label: 'Abgesagt' },
+    { key: 'past',     color: '#9e9e9e', label: 'Vergangen' },
+  ];
+  const visible = defs.filter(i => cats.has(i.key));
+  if (visible.length <= 1) { bar.innerHTML = ''; return; }
+  bar.innerHTML = visible.map(i =>
+    `<span class="legend-item"><span class="legend-dot" style="background:${i.color}"></span>${i.label}</span>`
+  ).join('');
 }
 
 // ── column formatters ───────────────────────────────────────────────────────
@@ -539,10 +566,15 @@ function initTable(data) {
     rowFormatter(row) {
       const d = row.getData();
       const el = row.getElement();
-      el.classList.toggle('vorrat',      !!d.rittvorrat);
-      el.classList.toggle('no-coords',   !d.lat);
-      el.classList.toggle('row-active',  d.id === activeId);
-      el.classList.toggle('row-abgesagt', (d.status || '').toLowerCase().includes('abgesagt'));
+      const isPast = (d.end_date || d.start_date) < TODAY;
+      const isAbgesagt = !!d.rittvorrat || (d.status || '').toLowerCase().includes('abgesagt');
+      const isVorl = !isAbgesagt && !isPast && (d.status || '').toLowerCase().includes('vorl');
+      el.classList.toggle('vorrat',       !!d.rittvorrat);
+      el.classList.toggle('no-coords',    !d.lat);
+      el.classList.toggle('row-active',   d.id === activeId);
+      el.classList.toggle('row-abgesagt', isAbgesagt);
+      el.classList.toggle('row-vorl',     isVorl);
+      el.classList.toggle('row-past',     isPast && !isAbgesagt);
     },
   });
 

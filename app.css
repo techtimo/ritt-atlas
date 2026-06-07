@@ -78,10 +78,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .mtbl tr { cursor: pointer; }
 .mtbl tr:hover td { background: #fff8e1 !important; }
 .mtbl tr.no-coords { opacity: .6; }
-.mtbl tr.vorrat td { background: #ffebee; }
-.mtbl tr.vorrat:hover td { background: #ffcdd2 !important; }
 .mtbl tr.row-active td { background: #ffe082 !important; }
-.mtbl tr.row-abgesagt td { text-decoration: line-through; color: #999; }
 
 .tbl-doc { display: inline-block; padding: 2px 6px; background: #2ea3f2; color: #fff; border-radius: 3px; font-size: 10px; text-decoration: none; white-space: nowrap; }
 .tbl-doc:hover { background: #1a8fd1; }
@@ -90,9 +87,8 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .tbl-doc-ics:hover { background: #2e7d32 !important; }
 
 .status-fest  { color: #2e7d32; font-weight: 600; }
-.status-vorl  { color: #e65100; }
+.status-vorl  { color: #c79000; }
 .status-abges { color: #b71c1c; text-decoration: line-through; }
-.row-abgesagt td { text-decoration: line-through; color: #999; }
 
 .no-map-badge { font-size: 10px; padding: 1px 4px; background: #eee; border-radius: 3px; color: #888; margin-left: 4px; }
 
@@ -128,6 +124,12 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .tog.active { background: #2ea3f2; color: #fff; border-color: #2ea3f2; }
 #btn-clear-filters { padding: 2px 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 11px; cursor: pointer; color: #666; margin-left: auto; display: none; }
 #btn-clear-filters:hover { background: #fee; color: #c00; border-color: #fcc; }
+
+/* ── legend bar ── */
+#legend-bar { position: absolute; top: 8px; left: 8px; z-index: 2; display: flex; flex-direction: column; gap: 4px; padding: 6px 9px; background: rgba(255,255,255,.92); border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+#legend-bar:empty { display: none; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #333; white-space: nowrap; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
 /* ── location / radius ── */
 #loc-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
