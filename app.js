@@ -715,6 +715,7 @@ document.getElementById('show-vorrat').addEventListener('change', e => {
       '<p style="margin:0;line-height:1.5">Vermisst du einen dieser Ritte? ' +
       'Vielleicht kannst du dabei helfen, einen Ritt wieder aufleben zu lassen. ' +
       'Möglicherweise kannst du dich mit dem Veranstalter in Verbindung setzen.</p>';
+    document.getElementById('popup-modal-footer').innerHTML = '';
     modal.classList.add('show');
   }
 });
