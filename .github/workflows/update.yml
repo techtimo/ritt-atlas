@@ -23,6 +23,16 @@ jobs:
           result=$(python vdd_scrape.py --check-only)
           echo "changed=$result" >> "$GITHUB_OUTPUT"
 
+      - name: Snapshot old data
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          if git show HEAD:data.min.json > old.min.json 2>/dev/null; then
+            echo "old data saved"
+          else
+            echo "[]" > old.min.json
+          fi
+
       - name: Run scraper
         if: steps.check.outputs.changed == 'true'
         run: python vdd_scrape.py
@@ -34,3 +44,11 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data.json data.min.json
           git diff --cached --quiet || (git commit -m "chore: auto-update data $(date -u +%Y-%m-%d)" && git push)
+
+      - name: Send push notifications
+        if: steps.check.outputs.changed == 'true'
+        env:
+          NOTIFY_TOKEN: ${{ secrets.NOTIFY_TOKEN }}
+          PUSH_SERVER_URL: ${{ secrets.PUSH_SERVER_URL }}
+        run: |
+          python notify_diff.py --old old.min.json --new data.min.json --server "$PUSH_SERVER_URL"
