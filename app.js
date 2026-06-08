@@ -84,6 +84,17 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
+// Retries once after a delay on network errors (e.g. fly.io cold-start waking up).
+async function fetchWithWakeup(url, options, delayMs = 4000) {
+  try {
+    return await fetch(url, options);
+  } catch (e) {
+    if (!(e instanceof TypeError)) throw e;
+    await new Promise(r => setTimeout(r, delayMs));
+    return fetch(url, options);
+  }
+}
+
 async function subscribePush(prefs) {
   if (!('serviceWorker' in navigator) || !('PushManager' in window))
     throw new Error('Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.');
@@ -94,7 +105,7 @@ async function subscribePush(prefs) {
   const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
   const subJson = sub.toJSON();
   const body = { endpoint: subJson.endpoint, keys: subJson.keys, notify_new_events: prefs.notify_new_events ?? true, notify_all_changes: prefs.notify_all_changes ?? false, favorites: prefs.notify_changes === 'none' ? [] : [...favs] };
-  const r = await fetch(PUSH_SERVER_URL + '/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const r = await fetchWithWakeup(PUSH_SERVER_URL + '/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) throw new Error('Server-Fehler: ' + r.status);
   try {
     localStorage.setItem('vdd_push_sub', JSON.stringify({ endpoint: subJson.endpoint, keys: subJson.keys }));
@@ -186,17 +197,21 @@ function wireSettingsModal() {
   const enableToggle = document.getElementById('sn-enable');
   if (enableToggle) {
     enableToggle.addEventListener('change', async () => {
+      const enabling = enableToggle.checked;
+      enableToggle.checked = !enabling; // revert until server confirms
       enableToggle.disabled = true;
+      const toggleLabel = enableToggle.closest('.sn-toggle');
+      if (toggleLabel) toggleLabel.classList.add('sn-toggle-loading');
       try {
-        if (enableToggle.checked) {
+        if (enabling) {
           const prefs = JSON.parse(localStorage.getItem('vdd_push_prefs') || '{"notify_new_events":true,"notify_all_changes":false}');
           await subscribePush(prefs);
         } else {
           await unsubscribePush();
         }
       } catch(err) {
-        enableToggle.checked = !enableToggle.checked;
         enableToggle.disabled = false;
+        if (toggleLabel) toggleLabel.classList.remove('sn-toggle-loading');
         const errEl = document.createElement('div');
         errEl.className = 'sn-error';
         errEl.textContent = err.message;
