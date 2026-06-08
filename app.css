@@ -67,13 +67,13 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 /* ── custom table ── */
 .mtbl-wrap { overflow: auto; height: 100%; }
 .mtbl { border-collapse: separate; border-spacing: 0; font-size: 12px; font-family: inherit; width: max-content; min-width: 100%; }
-.mtbl th { background: #eaeaea; border-right: 1px solid #d0d0d0; border-bottom: 2px solid #bbb; padding: 5px 7px; font-size: 11px; font-weight: 600; white-space: nowrap; position: sticky; top: 0; z-index: 1; cursor: pointer; user-select: none; }
+.mtbl th { background: #eaeaea; border-right: 1px solid #d0d0d0; border-bottom: 2px solid #bbb; padding: 2px 2px; font-size: 11px; font-weight: 600; white-space: nowrap; position: sticky; top: 0; z-index: 1; cursor: pointer; user-select: none; }
 .mtbl th.ns { cursor: default; }
 .mtbl th .sa { margin-left: 3px; font-size: 8px; opacity: .45; }
 .mtbl th.asc .sa::after { content: '▲'; opacity: 1; }
 .mtbl th.desc .sa::after { content: '▼'; opacity: 1; }
 .mtbl th.fr { z-index: 3; }
-.mtbl td { padding: 5px 7px; border-right: 1px solid #f0f0f0; border-bottom: 1px solid #eee; vertical-align: top; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mtbl td { padding: 2px; border-right: 1px solid #f0f0f0; border-bottom: 1px solid #eee; vertical-align: top; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mtbl td.fr { position: sticky; left: 0; background: #fff; z-index: 1; box-shadow: 2px 0 4px -2px rgba(0,0,0,.15); }
 .mtbl tr { cursor: pointer; }
 .mtbl tr:hover td { background: #fff8e1 !important; }
