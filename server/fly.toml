@@ -1,4 +1,4 @@
-app = "vdd-rittatlas-push"
+app = "vdd-rittatlas-server"
 primary_region = "fra"
 
 [build]
