@@ -13,12 +13,14 @@ FALLBACK_URL = "https://techtimo.github.io/vdd-rittatlas/"
 
 # Ordered by priority (ascending). Only these groups trigger notifications.
 FIELD_GROUPS = [
-    ("status",    ["status"],                                                           1, "Status"),
-    ("documents", ["announcement_pdf", "results_pdf", "registration_pdf",
-                   "announcement_updated"],                                             2, "Dokumente"),
-    ("date",      ["start_date", "end_date", "multi_day"],                             3, "Termin"),
-    ("location",  ["venue", "lat", "lon"],                                             4, "Ort"),
-    ("distances", ["efr", "kdr", "mdr", "ldr", "mtr", "cei"],                         5, "Distanzen"),
+    ("status",       ["status"],                                1, "Status"),
+    ("announcement", ["announcement_pdf", "announcement_updated"], 2, "Ausschreibung"),
+    ("results",      ["results_pdf"],                           3, "Ergebnisliste"),
+    ("registration", ["registration_pdf"],                      4, "Nennformular"),
+    ("bemerkung",    ["bemerkung"],                              5, "Bemerkung"),
+    ("date",         ["start_date", "end_date", "multi_day"],   6, "Termin"),
+    ("location",     ["venue", "lat", "lon"],                   7, "Ort"),
+    ("distances",    ["efr", "kdr", "mdr", "ldr", "mtr", "cei"], 8, "Distanzen"),
 ]
 
 LAT_LON_FIELDS = {"lat", "lon"}
@@ -69,10 +71,16 @@ def build_event_change_body(event, changed_groups):
         _, label, group_name = changed_groups[0]
         if group_name == "status":
             return f"Status: {event.get('status', '')}"
-        if group_name == "documents":
-            return "Neue Dokumente verfügbar"
+        if group_name == "announcement":
+            return "Die Ausschreibung wurde aktualisiert"
+        if group_name == "results":
+            return "Die Ergebnisliste ist verfügbar"
+        if group_name == "registration":
+            return "Das Nennformular wurde aktualisiert"
+        if group_name == "bemerkung":
+            return "Die Bemerkung wurde aktualisiert"
         if group_name == "date":
-            return f"Termin geändert: {format_date(event.get('start_date'))}"
+            return f"Der Termin geändert: {format_date(event.get('start_date'))}"
         if group_name == "location":
             return "Veranstaltungsort aktualisiert"
         if group_name == "distances":

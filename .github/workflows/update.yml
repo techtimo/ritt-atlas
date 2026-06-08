@@ -45,6 +45,26 @@ jobs:
           git add data.json data.min.json
           git diff --cached --quiet || (git commit -m "chore: auto-update data $(date -u +%Y-%m-%d)" && git push)
 
+      - name: Wake up push server
+        if: steps.check.outputs.changed == 'true'
+        env:
+          PUSH_SERVER_URL: ${{ secrets.PUSH_SERVER_URL }}
+        run: |
+          python - <<'EOF'
+          import os, requests, time, sys
+          url = os.environ["PUSH_SERVER_URL"].rstrip("/") + "/health"
+          for attempt in range(6):
+              try:
+                  resp = requests.get(url, timeout=15)
+                  if resp.status_code < 500:
+                      print(f"Server ready after {attempt+1} attempt(s)")
+                      sys.exit(0)
+              except Exception as e:
+                  print(f"Attempt {attempt+1}/6: {e}")
+              time.sleep(5)
+          print("WARNING: server did not respond; proceeding anyway", file=sys.stderr)
+          EOF
+
       - name: Send push notifications
         if: steps.check.outputs.changed == 'true'
         env:

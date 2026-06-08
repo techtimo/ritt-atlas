@@ -185,6 +185,10 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .sn-pill span { display: block; padding: 6px 10px; border-radius: 6px; font-size: 13px; text-align: center; cursor: pointer; white-space: nowrap; color: #555; }
 .sn-pill input:checked + span { background: #fff; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.12); color: #111; }
 .sn-error { margin: 6px 0 0; padding: 7px 10px; border: 1px solid #f5c0c0; border-radius: 5px; background: #fff5f5; color: #c00; font-size: 12px; }
+#sn-sync-status { display: block; margin: 6px 0 0; padding: 7px 10px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: transparent; font-size: 12px; line-height: 1.4; min-height: calc(12px * 1.4 + 16px + 2px); }
+#sn-sync-status.sn-sync-saved { border-color: #b2d8b2; background: #f0faf0; color: #2a6b2a; }
+#sn-sync-status.sn-error { border-color: #f5c0c0; background: #fff5f5; color: #c00; }
+.sn-pill-loading { cursor: wait; pointer-events: none; animation: sn-pulse .8s ease-in-out infinite alternate; }
 
 /* ── burger btn (inside header) ── */
 #burger-btn { background: transparent; border: none; font-size: 20px; cursor: pointer; color: #fff; padding: 0 2px; line-height: 1; display: flex; align-items: center; border-radius: 4px; flex-shrink: 0; }

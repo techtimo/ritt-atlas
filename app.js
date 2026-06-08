@@ -45,9 +45,25 @@ function toggleFav(id) {
 
 // ── push notifications ────────────────────────────────────────────────────────
 let _prefSyncTimer = null;
+let _savedTimer = null;
+
+function _setSyncStatus(s, msg = '') {
+  clearTimeout(_savedTimer);
+  const loading = s === 'pending';
+  document.getElementById('sn-pill-changes')?.classList.toggle('sn-pill-loading', loading);
+  document.getElementById('sn-toggle-new-events')?.classList.toggle('sn-toggle-loading', loading);
+  const el = document.getElementById('sn-sync-status');
+  if (el) {
+    if (s === 'saved') { el.className = 'sn-sync-saved'; el.textContent = 'Gespeichert'; }
+    else if (s === 'error') { el.className = 'sn-error'; el.textContent = msg || 'Fehler beim Speichern'; }
+    else { el.className = ''; el.textContent = ''; }
+  }
+  if (s === 'saved' || s === 'error') _savedTimer = setTimeout(() => _setSyncStatus('idle'), 4000);
+}
 
 function schedulePrefSync() {
   clearTimeout(_prefSyncTimer);
+  _setSyncStatus('pending');
   _prefSyncTimer = setTimeout(syncPrefsToServer, 1500);
 }
 
@@ -61,19 +77,24 @@ async function syncPrefsToServer() {
   const bodyJson = JSON.stringify(body);
   if (!navigator.onLine) {
     try { localStorage.setItem('vdd_pending_prefs', bodyJson); } catch(_) {}
+    _setSyncStatus('idle');
     return;
   }
   try {
-    const r = await fetch(PUSH_SERVER_URL + '/preferences', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: bodyJson });
+    const r = await fetchWithWakeup(PUSH_SERVER_URL + '/preferences', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: bodyJson });
     if (r.ok) {
       try { localStorage.removeItem('vdd_pending_prefs'); } catch(_) {}
+      _setSyncStatus('saved');
     } else if (r.status === 404) {
       try { localStorage.removeItem('vdd_push_sub'); localStorage.removeItem('vdd_pending_prefs'); } catch(_) {}
+      _setSyncStatus('idle');
     } else {
       try { localStorage.setItem('vdd_pending_prefs', bodyJson); } catch(_) {}
+      _setSyncStatus('error', 'Server-Fehler: ' + r.status);
     }
-  } catch(_) {
+  } catch(e) {
     try { localStorage.setItem('vdd_pending_prefs', bodyJson); } catch(_) {}
+    _setSyncStatus('error', e.message);
   }
 }
 
@@ -84,15 +105,18 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
-// Retries once after a delay on network errors (e.g. fly.io cold-start waking up).
-async function fetchWithWakeup(url, options, delayMs = 4000) {
-  try {
-    return await fetch(url, options);
-  } catch (e) {
-    if (!(e instanceof TypeError)) throw e;
-    await new Promise(r => setTimeout(r, delayMs));
-    return fetch(url, options);
+// Retries on network errors to survive fly.io cold-starts (can take 10-15 s).
+async function fetchWithWakeup(url, options, { retries = 4, delayMs = 4000 } = {}) {
+  let lastErr;
+  for (let i = 0; i <= retries; i++) {
+    if (i > 0) await new Promise(r => setTimeout(r, delayMs));
+    try { return await fetch(url, options); }
+    catch (e) {
+      if (!(e instanceof TypeError)) throw e;
+      lastErr = e;
+    }
   }
+  throw lastErr;
 }
 
 async function subscribePush(prefs) {
@@ -118,7 +142,7 @@ async function unsubscribePush() {
   if (subJson) {
     try {
       const sub = JSON.parse(subJson);
-      await fetch(PUSH_SERVER_URL + '/unsubscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+      await fetchWithWakeup(PUSH_SERVER_URL + '/unsubscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint }) });
     } catch(_) {}
   }
   if ('serviceWorker' in navigator) {
@@ -163,7 +187,7 @@ function buildSettingsHtml() {
     <span class="sn-label">Neue Ritte</span>
     <span class="sn-desc">Bei neuen Ritten benachrichtigen</span>
   </div>
-  <label class="sn-toggle">
+  <label id="sn-toggle-new-events" class="sn-toggle">
     <input type="checkbox" id="pref-new-events"${prefs.notify_new_events ? ' checked' : ''}${dis}>
     <span class="sn-toggle-track"></span>
   </label>
@@ -174,12 +198,13 @@ function buildSettingsHtml() {
     <span class="sn-label">Änderungen an Ritten</span>
     <span class="sn-desc">Bei Zeit-, Ort- oder Detailänderungen</span>
   </div>
-  <div class="sn-pill-group">
+  <div id="sn-pill-changes" class="sn-pill-group">
     ${pill('none', 'Keine')}
     ${pill('favorites', 'Favoriten')}
     ${pill('all', 'Alle Ritte')}
   </div>
-</div>`;
+</div>
+<span id="sn-sync-status"></span>`;
 }
 
 function wireSettingsModal() {
@@ -212,13 +237,11 @@ function wireSettingsModal() {
       } catch(err) {
         enableToggle.disabled = false;
         if (toggleLabel) toggleLabel.classList.remove('sn-toggle-loading');
-        const errEl = document.createElement('div');
-        errEl.className = 'sn-error';
-        errEl.textContent = err.message;
-        enableToggle.closest('.sn-row').insertAdjacentElement('afterend', errEl);
+        _setSyncStatus('error', err.message);
         return;
       }
       refresh();
+      _setSyncStatus('saved');
     });
   }
 
