@@ -593,6 +593,7 @@ function initTable(data) {
 
   tbl.on("dataFiltered", (_filters, rows) => {
     const visibleIds = new Set(rows.map(r => r.getData().id));
+    if (activeId && !visibleIds.has(activeId) && openPopup) openPopup.remove();
     EVENTS.forEach(ev => {
       if (!markers[ev.id]) return;
       visibleIds.has(ev.id) ? markers[ev.id].addTo(map) : markers[ev.id].remove();
