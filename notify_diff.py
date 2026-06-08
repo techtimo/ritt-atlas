@@ -6,10 +6,21 @@ import datetime
 import json
 import os
 import sys
+import urllib.parse
 
 import requests
 
-FALLBACK_URL = "https://techtimo.github.io/vdd-rittatlas/"
+SITE_URL = "https://techtimo.github.io/vdd-rittatlas/"
+
+ICON_ACTION = SITE_URL + "favicon.svg"
+WIKI_FILE = "https://vdd-aktuell.de/mediawiki/index.php?title=Special:Redirect/file/"
+
+DOC_GROUPS = [
+    ("announcement", "announcement_pdf", "Ausschreibung"),
+    ("results",      "results_pdf",      "Ergebnisliste"),
+    ("registration", "registration_pdf", "Nennformular"),
+]
+ACTION_OPEN = {"action": "open", "title": "Zum Ritt", "icon": ICON_ACTION}
 
 # Ordered by priority (ascending). Only these groups trigger notifications.
 FIELD_GROUPS = [
@@ -92,13 +103,28 @@ def build_event_change_body(event, changed_groups):
 
 def build_event_change_notification(event, changed_groups):
     event_id = event["id"]
+    group_names = {g[2] for g in changed_groups}
+    doc_urls = {
+        group: WIKI_FILE + urllib.parse.quote(event[field], safe="")
+        for group, field, _ in DOC_GROUPS
+        if group in group_names and event.get(field)
+    }
+    actions = [
+        {"action": group, "title": label, "icon": ICON_ACTION}
+        for group, _, label in DOC_GROUPS
+        if group in doc_urls
+    ]
+    if len(actions) < 2:
+        actions.append(ACTION_OPEN)
     return {
         "category": "event_change",
         "event_id": event_id,
         "title": event.get("name", event_id),
         "body": build_event_change_body(event, changed_groups),
-        "url": event.get("vdd_url") or FALLBACK_URL,
+        "url": SITE_URL + "#" + urllib.parse.quote(event_id),
         "tag": event_id,
+        "actions": actions,
+        "doc_urls": doc_urls,
     }
 
 
@@ -111,8 +137,9 @@ def build_new_event_notification(event):
         "event_id": event_id,
         "title": f"Neuer Ritt: {event.get('name', event_id)}",
         "body": f"{region} · {start_date}",
-        "url": event.get("vdd_url") or FALLBACK_URL,
+        "url": SITE_URL + "#" + urllib.parse.quote(event_id),
         "tag": event_id,
+        "actions": [ACTION_OPEN],
     }
 
 

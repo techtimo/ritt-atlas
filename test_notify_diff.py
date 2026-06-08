@@ -183,13 +183,14 @@ def test_lat_exceeds_tolerance_location_notification():
     assert result[0]["body"] == "Veranstaltungsort aktualisiert"
 
 
-# Additional: url falls back to FALLBACK_URL when vdd_url is empty
-def test_url_fallback():
-    from notify_diff import FALLBACK_URL
+# Additional: url is always SITE_URL#<event_id> regardless of vdd_url
+def test_url_is_site_deep_link():
+    from notify_diff import SITE_URL
+    import urllib.parse
     new = base_event(vdd_url=None)
     result = compute_notifications([], [new])
     assert len(result) == 1
-    assert result[0]["url"] == FALLBACK_URL
+    assert result[0]["url"] == SITE_URL + "#" + urllib.parse.quote(new["id"])
 
 
 # Additional: event with no id is skipped

@@ -12,10 +12,12 @@ import (
 )
 
 type pushPayload struct {
-	Title string `json:"title"`
-	Body  string `json:"body"`
-	URL   string `json:"url"`
-	Tag   string `json:"tag"`
+	Title   string               `json:"title"`
+	Body    string               `json:"body"`
+	URL     string               `json:"url"`
+	Tag     string               `json:"tag"`
+	Actions []NotificationAction `json:"actions,omitempty"`
+	DocURLs map[string]string    `json:"doc_urls,omitempty"`
 }
 
 func resolveURL(u string) string {
@@ -46,7 +48,7 @@ func sendNotifications(cfg Config, subs []Subscription, notifs []Notification) (
 
 	var jobs []job
 	for _, n := range notifs {
-		p := pushPayload{Title: n.Title, Body: n.Body, URL: resolveURL(n.URL), Tag: n.Tag}
+		p := pushPayload{Title: n.Title, Body: n.Body, URL: resolveURL(n.URL), Tag: n.Tag, Actions: n.Actions, DocURLs: n.DocURLs}
 		payload, _ := json.Marshal(p)
 		topic := sanitizeTopic(n.EventID)
 

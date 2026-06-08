@@ -8,14 +8,16 @@ self.addEventListener('push', event => {
       icon: '/favicon.svg',
       badge: '/favicon.svg',
       tag: payload.tag || payload.event_id || undefined,
-      data: { url: payload.url || '/' },
+      data: { url: payload.url || '/', doc_urls: payload.doc_urls || {} },
+      actions: payload.actions || [],
     })
   );
 });
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const url = event.notification.data?.url || '/';
+  const data = event.notification.data || {};
+  const url = data.doc_urls[event.action] || data.url || '/';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const client of list) {
