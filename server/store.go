@@ -73,14 +73,14 @@ func (s *Store) Upsert(sub Subscription) (created bool, err error) {
 			`INSERT INTO subscriptions(endpoint, p256dh, auth, notify_new_events, notify_all_changes, created_at, updated_at)
 			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			sub.Endpoint, sub.Keys.P256dh, sub.Keys.Auth,
-			boolInt(sub.NotifyNewEvents), boolInt(sub.NotifyAllChanges), now, now,
+			sub.NotifyNewEvents, sub.NotifyAllChanges, now, now,
 		)
 	} else {
 		_, err = tx.Exec(
 			`UPDATE subscriptions SET p256dh=?, auth=?, notify_new_events=?, notify_all_changes=?, updated_at=?
 			 WHERE endpoint=?`,
 			sub.Keys.P256dh, sub.Keys.Auth,
-			boolInt(sub.NotifyNewEvents), boolInt(sub.NotifyAllChanges), now, sub.Endpoint,
+			sub.NotifyNewEvents, sub.NotifyAllChanges, now, sub.Endpoint,
 		)
 	}
 	if err != nil {
@@ -106,7 +106,7 @@ func (s *Store) UpdatePreferences(endpoint string, notifyNew, notifyAll bool, fa
 
 	res, err := tx.Exec(
 		`UPDATE subscriptions SET notify_new_events=?, notify_all_changes=?, updated_at=? WHERE endpoint=?`,
-		boolInt(notifyNew), boolInt(notifyAll), now, endpoint,
+		notifyNew, notifyAll, now, endpoint,
 	)
 	if err != nil {
 		return false, err
@@ -129,22 +129,19 @@ func (s *Store) Delete(endpoint string) error {
 	return err
 }
 
-// DeleteBatch removes multiple subscriptions in a single transaction.
+// DeleteBatch removes multiple subscriptions in one statement.
 func (s *Store) DeleteBatch(endpoints []string) error {
 	if len(endpoints) == 0 {
 		return nil
 	}
-	tx, err := s.db.Begin()
-	if err != nil {
-		return err
+	placeholders := strings.Repeat("?,", len(endpoints))
+	placeholders = placeholders[:len(placeholders)-1]
+	args := make([]any, len(endpoints))
+	for i, ep := range endpoints {
+		args[i] = ep
 	}
-	defer tx.Rollback()
-	for _, ep := range endpoints {
-		if _, err := tx.Exec("DELETE FROM subscriptions WHERE endpoint=?", ep); err != nil {
-			return err
-		}
-	}
-	return tx.Commit()
+	_, err := s.db.Exec("DELETE FROM subscriptions WHERE endpoint IN ("+placeholders+")", args...)
+	return err
 }
 
 // All loads every subscription with its preferences and favorites.
@@ -192,11 +189,4 @@ func replaceFavorites(tx *sql.Tx, endpoint string, favorites []string) error {
 		}
 	}
 	return nil
-}
-
-func boolInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }

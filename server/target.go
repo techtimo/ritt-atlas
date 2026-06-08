@@ -1,5 +1,7 @@
 package main
 
+import "slices"
+
 func shouldSend(n Notification, s Subscription) bool {
 	switch n.Category {
 	case "new_event":
@@ -8,17 +10,8 @@ func shouldSend(n Notification, s Subscription) bool {
 		if s.NotifyAllChanges {
 			return true
 		}
-		return contains(s.Favorites, n.EventID)
+		return slices.Contains(s.Favorites, n.EventID)
 	default:
 		return false
 	}
-}
-
-func contains(slice []string, val string) bool {
-	for _, v := range slice {
-		if v == val {
-			return true
-		}
-	}
-	return false
 }

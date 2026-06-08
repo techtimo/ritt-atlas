@@ -18,6 +18,13 @@ type pushPayload struct {
 	Tag   string `json:"tag"`
 }
 
+func resolveURL(u string) string {
+	if u == "" {
+		return "/"
+	}
+	return u
+}
+
 // sanitizeTopic returns a deterministic, base64url-encoded, ≤32-char collapse key for a given event ID.
 func sanitizeTopic(eventID string) string {
 	h := sha256.Sum256([]byte(eventID))
@@ -39,10 +46,7 @@ func sendNotifications(cfg Config, subs []Subscription, notifs []Notification) (
 
 	var jobs []job
 	for _, n := range notifs {
-		p := pushPayload{Title: n.Title, Body: n.Body, URL: n.URL, Tag: n.Tag}
-		if p.URL == "" {
-			p.URL = "/"
-		}
+		p := pushPayload{Title: n.Title, Body: n.Body, URL: resolveURL(n.URL), Tag: n.Tag}
 		payload, _ := json.Marshal(p)
 		topic := sanitizeTopic(n.EventID)
 

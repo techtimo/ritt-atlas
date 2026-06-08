@@ -86,8 +86,6 @@ func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	if created {
 		w.WriteHeader(http.StatusCreated)
-	} else {
-		w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -121,7 +119,6 @@ func (h *Handler) Preferences(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "subscription not found", http.StatusNotFound)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
@@ -145,7 +142,6 @@ func (h *Handler) Unsubscribe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) Notify(w http.ResponseWriter, r *http.Request) {

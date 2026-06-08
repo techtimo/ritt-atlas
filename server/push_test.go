@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -54,35 +53,16 @@ func TestSanitizeTopic_DifferentIDs(t *testing.T) {
 
 // --- payload structure test ---
 
-func TestPushPayload_EmptyURLFallback(t *testing.T) {
-	n := Notification{Title: "Test", Body: "body", URL: "", Tag: "tag1", EventID: "evt1"}
-	p := pushPayload{Title: n.Title, Body: n.Body, URL: n.URL, Tag: n.Tag}
-	if p.URL == "" {
-		p.URL = "/"
-	}
-	if p.URL != "/" {
-		t.Errorf("expected URL fallback '/', got %q", p.URL)
-	}
-
-	data, err := json.Marshal(p)
-	if err != nil {
-		t.Fatalf("marshal payload: %v", err)
-	}
-	var out map[string]string
-	json.Unmarshal(data, &out)
-	if out["url"] != "/" {
-		t.Errorf("serialized url = %q, want /", out["url"])
+func TestResolveURL_EmptyFallsBack(t *testing.T) {
+	if got := resolveURL(""); got != "/" {
+		t.Errorf("resolveURL(\"\") = %q, want /", got)
 	}
 }
 
-func TestPushPayload_NonEmptyURL(t *testing.T) {
-	n := Notification{URL: "https://example.com/event/123"}
-	p := pushPayload{URL: n.URL}
-	if p.URL == "" {
-		p.URL = "/"
-	}
-	if p.URL != "https://example.com/event/123" {
-		t.Errorf("URL should not be overwritten, got %q", p.URL)
+func TestResolveURL_NonEmptyPreserved(t *testing.T) {
+	u := "https://example.com/event/123"
+	if got := resolveURL(u); got != u {
+		t.Errorf("resolveURL(%q) = %q, want unchanged", u, got)
 	}
 }
 
@@ -95,7 +75,7 @@ func TestNotifyHandler_MissingToken_Returns401(t *testing.T) {
 	}
 	defer store.Close()
 
-	cfg := Config{NotifyToken: "secret123", AllowedOrigin: "*"}
+	cfg := Config{NotifyToken: "secret123", AllowedOrigins: []string{"*"}}
 	h := NewHandler(cfg, store)
 
 	body := `{"notifications":[]}`
@@ -118,7 +98,7 @@ func TestNotifyHandler_WrongToken_Returns401(t *testing.T) {
 	}
 	defer store.Close()
 
-	cfg := Config{NotifyToken: "secret123", AllowedOrigin: "*"}
+	cfg := Config{NotifyToken: "secret123", AllowedOrigins: []string{"*"}}
 	h := NewHandler(cfg, store)
 
 	body := `{"notifications":[]}`
@@ -141,7 +121,7 @@ func TestNotifyHandler_CorrectToken_EmptyList_Returns200(t *testing.T) {
 	}
 	defer store.Close()
 
-	cfg := Config{NotifyToken: "secret123", AllowedOrigin: "*"}
+	cfg := Config{NotifyToken: "secret123", AllowedOrigins: []string{"*"}}
 	h := NewHandler(cfg, store)
 
 	body := `{"notifications":[]}`
