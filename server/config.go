@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -12,7 +13,7 @@ type Config struct {
 	VAPIDPrivateKey string
 	VAPIDSubscriber string
 	NotifyToken     string
-	AllowedOrigin   string
+	AllowedOrigins  []string
 	PushTTL         int
 }
 
@@ -34,7 +35,7 @@ func loadConfig() Config {
 		VAPIDPrivateKey: os.Getenv("VAPID_PRIVATE_KEY"),
 		VAPIDSubscriber: os.Getenv("VAPID_SUBSCRIBER"),
 		NotifyToken:     os.Getenv("NOTIFY_TOKEN"),
-		AllowedOrigin:   envOr("ALLOWED_ORIGIN", "*"),
+		AllowedOrigins:  strings.Split(envOr("ALLOWED_ORIGIN", "*"), ","),
 		PushTTL:         ttl,
 	}
 }

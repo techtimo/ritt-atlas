@@ -1,0 +1,247 @@
+openapi: 3.1.0
+info:
+  title: VDD Push Notification Server
+  description: |
+    Manages Web Push subscriptions and delivers push notifications for
+    German endurance riding events (Distanzritte) scraped from the VDD MediaWiki.
+  version: 1.0.0
+servers:
+  - url: https://vdd-rittatlas-server.fly.dev
+    description: Production
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      responses:
+        "200":
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /subscribe:
+    post:
+      summary: Register or update a push subscription
+      operationId: subscribe
+      description: |
+        Creates a new subscription if the endpoint is not yet known,
+        or updates the keys and preferences of an existing one (upsert).
+        Returns 201 on creation, 200 on update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscribeRequest"
+      responses:
+        "200":
+          description: Existing subscription updated
+        "201":
+          description: New subscription created
+        "400":
+          description: Missing or invalid fields
+        "500":
+          description: Internal server error
+
+  /preferences:
+    post:
+      summary: Update notification preferences for an existing subscription
+      operationId: updatePreferences
+      description: |
+        Updates `notify_new_events`, `notify_all_changes`, and `favorites`
+        for an already-registered endpoint. The endpoint must exist;
+        use `/subscribe` to create it first.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreferencesRequest"
+      responses:
+        "200":
+          description: Preferences updated
+        "400":
+          description: Missing endpoint field
+        "404":
+          description: Subscription not found
+        "500":
+          description: Internal server error
+
+  /unsubscribe:
+    post:
+      summary: Remove a push subscription
+      operationId: unsubscribe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UnsubscribeRequest"
+      responses:
+        "200":
+          description: Subscription deleted (idempotent — also 200 if not found)
+        "400":
+          description: Missing endpoint field
+        "500":
+          description: Internal server error
+
+  /notify:
+    post:
+      summary: Send push notifications to matching subscribers
+      operationId: notify
+      description: |
+        Internal endpoint called by the scraper CI job after detecting changes.
+        Requires the `X-Notify-Token` header. Fans out notifications to all
+        stored subscriptions whose preference flags match the notification
+        category. Dead endpoints (410 Gone from the push service) are pruned
+        automatically.
+      security:
+        - notifyToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotifyRequest"
+      responses:
+        "200":
+          description: Notifications dispatched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotifyResponse"
+        "400":
+          description: Invalid request body
+        "401":
+          description: Missing or invalid X-Notify-Token
+        "500":
+          description: Internal server error
+
+components:
+  securitySchemes:
+    notifyToken:
+      type: apiKey
+      in: header
+      name: X-Notify-Token
+      description: Secret token authorising calls to /notify (set via NOTIFY_TOKEN env var)
+
+  schemas:
+    SubscribeRequest:
+      type: object
+      required: [endpoint, keys]
+      properties:
+        endpoint:
+          type: string
+          format: uri
+          description: Web Push endpoint URL provided by the browser
+          example: https://fcm.googleapis.com/fcm/send/abc123
+        keys:
+          type: object
+          required: [p256dh, auth]
+          properties:
+            p256dh:
+              type: string
+              description: Base64url-encoded P-256 public key
+            auth:
+              type: string
+              description: Base64url-encoded 16-byte authentication secret
+        notify_new_events:
+          type: boolean
+          default: true
+          description: Receive a push when a new event is added to the wiki
+        notify_all_changes:
+          type: boolean
+          default: false
+          description: Receive a push for any change to an existing event
+        favorites:
+          type: array
+          items:
+            type: string
+          default: []
+          description: Wiki event IDs the subscriber has bookmarked
+
+    PreferencesRequest:
+      type: object
+      required: [endpoint]
+      properties:
+        endpoint:
+          type: string
+          format: uri
+          description: Web Push endpoint URL that identifies the subscription
+        notify_new_events:
+          type: boolean
+        notify_all_changes:
+          type: boolean
+        favorites:
+          type: array
+          items:
+            type: string
+
+    UnsubscribeRequest:
+      type: object
+      required: [endpoint]
+      properties:
+        endpoint:
+          type: string
+          format: uri
+          description: Web Push endpoint URL to remove
+
+    Notification:
+      type: object
+      required: [category, event_id, title, body, url, tag]
+      properties:
+        category:
+          type: string
+          enum: [new_event, event_change]
+          description: Determines which subscribers receive this notification
+        event_id:
+          type: string
+          description: Unique wiki event identifier
+        title:
+          type: string
+          description: Push notification title
+        body:
+          type: string
+          description: Push notification body text
+        url:
+          type: string
+          format: uri
+          description: URL to open when the user taps the notification
+        tag:
+          type: string
+          description: Notification tag for deduplication/replacement in the browser
+
+    NotifyRequest:
+      type: object
+      required: [notifications]
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+
+    NotifyResponse:
+      type: object
+      properties:
+        notifications:
+          type: integer
+          description: Number of notifications in the request
+        subscriptions:
+          type: integer
+          description: Total active subscriptions at dispatch time
+        delivered:
+          type: integer
+          description: Successful push deliveries
+        skipped_no_target:
+          type: integer
+          description: Subscriptions skipped because no notification matched their preferences
+        pruned:
+          type: integer
+          description: Dead subscriptions removed (push service returned 410 Gone)
