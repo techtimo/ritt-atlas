@@ -22,12 +22,8 @@
 
 <main id="app">
   <div id="header">
+    <button id="burger-btn" aria-label="Menü öffnen">&#9776;</button>
     <h1>VDD Rittatlas</h1>
-    <div id="toggle-group">
-      <label id="vorrat-toggle"><input type="checkbox" id="show-vorrat"> Zeige Rittvorrat</label>
-      <label id="vergangene-toggle"><input type="checkbox" id="show-vergangene" checked> Zeige Vergangene</label>
-    </div>
-    <button id="btn-info" title="Über diesen Atlas">i</button>
   </div>
 
   <div id="offline-banner">Offline – PDFs und Karte nicht verfügbar</div>
@@ -66,6 +62,22 @@
             <button class="tog" data-dist="cei" title="Concours d'Endurance International">CEI</button>
           </div>
         </div>
+        <div class="fbar-group">
+          <span class="fbar-label">Status</span>
+          <div class="toggle-row">
+            <button class="tog tog-status" data-status="steht fest" title="Bestätigte Veranstaltungen">Fest</button>
+            <button class="tog tog-status" data-status="vorläufig" title="Vorläufig geplante Veranstaltungen">Vorl.</button>
+            <button class="tog tog-status" data-status="abgesagt" title="Abgesagte Veranstaltungen">Abges.</button>
+            <button class="tog tog-status" data-status="vergangen" title="Vergangene Veranstaltungen">Verg.</button>
+          </div>
+        </div>
+        <div class="fbar-group">
+          <span class="fbar-label">Favoriten</span>
+          <div class="toggle-row">
+            <button class="tog" data-fav="fav" title="Nur Favoriten anzeigen">&#9733;</button>
+            <button class="tog" data-fav="unfav" title="Nicht-Favoriten anzeigen">&#9734;</button>
+          </div>
+        </div>
         <button id="btn-clear-filters">&#x2715; Filter</button>
       </div>
       <div id="grid"></div>
@@ -77,6 +89,18 @@
     </div>
   </div>
 </main>
+
+<div id="burger-backdrop"></div>
+<div id="burger-drawer">
+  <label id="vorrat-toggle">
+    <input type="checkbox" id="show-vorrat"> Zeige Rittvorrat
+  </label>
+  <hr class="burger-divider">
+  <button class="burger-item" data-modal="settings-modal">⚙️ Einstellungen</button>
+  <button class="burger-item" data-modal="info-modal">ℹ️ Info</button>
+  <button class="burger-item" data-modal="datenschutz-modal">🔒 Datenschutz</button>
+  <button class="burger-item" data-modal="impressum-modal">📄 Impressum</button>
+</div>
 
 <!-- info modal -->
 <div id="info-modal">
@@ -92,17 +116,67 @@
         <tr><td>Zuletzt geprüft:</td><td id="info-geprueft">–</td></tr>
         <tr><td>Letzte Änderung:</td><td id="info-last-changed">–</td></tr>
       </table>
-      <p>Quellcode: <a href="https://github.com/techtimo/vdd-rittatlas" target="_blank" rel="noopener">github.com/techtimo/vdd-rittatlas</a></p>
       <hr style="margin:14px 0;border:none;border-top:1px solid #eee">
-      <p style="font-weight:600;margin-bottom:6px">Datenschutzerklärung</p>
-      <p>Diese Seite setzt <strong>keine Cookies</strong> und erstellt keine Nutzerprofile. Die öffentlichen Veranstaltungsdaten werden im <strong>lokalen Speicher</strong> (localStorage) Ihres Browsers gespeichert, um eine Offline-Nutzung zu ermöglichen. Es werden dabei keine personenbezogenen Daten gespeichert.</p>
+      <p>Quellcode: <a href="https://github.com/techtimo/vdd-rittatlas" target="_blank" rel="noopener">github.com/techtimo/vdd-rittatlas</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- datenschutz modal -->
+<div id="datenschutz-modal" class="std-modal">
+  <div class="std-modal-content">
+    <div class="std-modal-header">
+      <span>Datenschutzerklärung</span>
+      <button class="std-modal-close" data-modal="datenschutz-modal">✕</button>
+    </div>
+    <div class="std-modal-body">
+      <p>Diese Seite setzt <strong>keine Cookies</strong> und erstellt keine Nutzerprofile.</p>
+      <p><strong>Lokaler Speicher (localStorage):</strong> Folgende Daten werden lokal in Ihrem Browser gespeichert – es werden keine personenbezogenen Daten übertragen:</p>
+      <ul>
+        <li><code>vdd_d</code>, <code>vdd_t</code>, <code>vdd_sa</code> – Veranstaltungsdaten (offline-Cache, max. 7 Tage)</li>
+        <li><code>vdd_favs</code> – Ihre Favoriten (Liste von Ritt-IDs)</li>
+        <li><code>vdd_push_sub</code> – Push-Abonnement-Daten (nur bei aktivierten Benachrichtigungen)</li>
+        <li><code>vdd_push_prefs</code> – Ihre Benachrichtigungseinstellungen</li>
+        <li><code>vdd_pending_prefs</code> – Ausstehende Einstellungsänderungen (wird beim nächsten Online-Start synchronisiert)</li>
+      </ul>
       <p><strong>Drittanbieter:</strong> Beim Laden der Seite werden Ressourcen von folgenden Diensten geladen, an die dabei Ihre IP-Adresse übermittelt wird:</p>
-      <ul style="margin:4px 0 8px 16px;line-height:1.8">
+      <ul>
         <li><a href="https://basemap.de" target="_blank" rel="noopener">basemap.de</a> / <a href="https://www.bkg.bund.de" target="_blank" rel="noopener">BKG</a> (sgx.geodatenzentrum.de) – Vektorkartenkacheln und Kartenstil</li>
         <li><a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub</a> (github.io, api.github.com) – Hosting der Website und Prüfung des letzten Datenabgleichs</li>
         <li><a href="https://vdd-aktuell.de" target="_blank" rel="noopener">VDD MediaWiki</a> – Veranstaltungsbilder und Dokumente (nur beim Öffnen einer Veranstaltung)</li>
       </ul>
+      <p><strong>Push-Server (fly.io):</strong> Wenn Sie Push-Benachrichtigungen aktivieren, wird Ihr Browser-Abonnement (Push-Endpoint-URL sowie kryptographische Schlüssel) auf einem Server von <a href="https://fly.io" target="_blank" rel="noopener">fly.io</a> gespeichert. Die Speicherung erfolgt auf europäischen Servern (Region: Frankfurt). Fly.io verarbeitet diese Daten gemäß ihrer <a href="https://fly.io/legal/privacy-policy/" target="_blank" rel="noopener">Datenschutzerklärung</a>. Wenn Sie keine Push-Benachrichtigungen aktivieren, werden <strong>keine Daten</strong> an fly.io übermittelt.</p>
       <p><strong>Standortdaten:</strong> Die Standortfunktion verarbeitet Ihren Standort ausschließlich lokal im Browser. Es werden keine Standortdaten übertragen.</p>
+    </div>
+  </div>
+</div>
+
+<!-- impressum modal -->
+<div id="impressum-modal" class="std-modal">
+  <div class="std-modal-content">
+    <div class="std-modal-header">
+      <span>Impressum</span>
+      <button class="std-modal-close" data-modal="impressum-modal">✕</button>
+    </div>
+    <div class="std-modal-body">
+      <p><strong>Angaben gemäß § 5 TMG</strong></p>
+      <p>[NAME]<br>[STRASSE, HAUSNUMMER]<br>[PLZ ORT]</p>
+      <p><strong>Kontakt</strong></p>
+      <p>E-Mail: [EMAIL]</p>
+      <p><strong>Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</strong></p>
+      <p>[NAME]<br>[ADRESSE]</p>
+    </div>
+  </div>
+</div>
+
+<!-- settings modal -->
+<div id="settings-modal" class="std-modal">
+  <div class="std-modal-content">
+    <div class="std-modal-header">
+      <span>Einstellungen</span>
+      <button class="std-modal-close" data-modal="settings-modal">✕</button>
+    </div>
+    <div class="std-modal-body" id="settings-modal-body">
     </div>
   </div>
 </div>
@@ -112,6 +186,7 @@
   <div id="popup-modal-content">
     <div id="popup-modal-header">
       <span id="popup-modal-title"></span>
+      <button id="popup-modal-star" title="Zu Favoriten hinzufügen">&#9734;</button>
       <button id="popup-modal-share" title="Link teilen" data-copied="✓"></button>
       <button id="popup-modal-close">✕</button>
     </div>

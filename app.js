@@ -1,5 +1,7 @@
 let EVENTS = [];
 const WIKI_FILE = "https://vdd-aktuell.de/mediawiki/index.php?title=Special:Redirect/file/";
+const VAPID_PUBLIC_KEY = 'BB56Mes7d34d0yJ0xzH1krHSWVj1Fly91I6rAfkwMU-qoXvbkfXkMts2pDrOaq_21TqwBNNcjla49FdB2H2P22Q';
+const PUSH_SERVER_URL  = 'https://vdd-rittatlas-server.fly.dev';
 
 function safeUrl(url) {
   return url && /^https?:\/\//i.test(url) ? url : '';
@@ -17,13 +19,222 @@ function preloadImg(ev) {
   }
 }
 
+// ── favourites ────────────────────────────────────────────────────────────────
+let favs = new Set();
+try { favs = new Set(JSON.parse(localStorage.getItem('vdd_favs') || '[]')); } catch(_) {}
+
+function toggleFav(id) {
+  if (favs.has(id)) favs.delete(id); else favs.add(id);
+  try { localStorage.setItem('vdd_favs', JSON.stringify([...favs])); } catch(_) {}
+  const starred = favs.has(id);
+  const ev = EVENTS.find(e => e.id === id);
+  if (ev) ev._fav = starred ? 1 : 0;
+  document.querySelectorAll('.fav-star').forEach(s => {
+    if (s.dataset.id === id) {
+      s.classList.toggle('starred', starred);
+      s.title = starred ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen';
+    }
+  });
+  document.querySelectorAll(`[data-fav-id="${CSS.escape(id)}"]`).forEach(el => {
+    el.classList.toggle('starred', starred);
+    el.title = starred ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen';
+  });
+  applyFilters();
+  schedulePrefSync();
+}
+
+// ── push notifications ────────────────────────────────────────────────────────
+let _prefSyncTimer = null;
+
+function schedulePrefSync() {
+  clearTimeout(_prefSyncTimer);
+  _prefSyncTimer = setTimeout(syncPrefsToServer, 1500);
+}
+
+async function syncPrefsToServer() {
+  const subJson = localStorage.getItem('vdd_push_sub');
+  if (!subJson) return;
+  let sub;
+  try { sub = JSON.parse(subJson); } catch(_) { return; }
+  const prefs = JSON.parse(localStorage.getItem('vdd_push_prefs') || '{"notify_new_events":true,"notify_all_changes":false}');
+  const body = { endpoint: sub.endpoint, notify_new_events: prefs.notify_new_events, notify_all_changes: prefs.notify_all_changes, favorites: prefs.notify_changes === 'none' ? [] : [...favs] };
+  const bodyJson = JSON.stringify(body);
+  if (!navigator.onLine) {
+    try { localStorage.setItem('vdd_pending_prefs', bodyJson); } catch(_) {}
+    return;
+  }
+  try {
+    const r = await fetch(PUSH_SERVER_URL + '/preferences', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: bodyJson });
+    if (r.ok) {
+      try { localStorage.removeItem('vdd_pending_prefs'); } catch(_) {}
+    } else if (r.status === 404) {
+      try { localStorage.removeItem('vdd_push_sub'); localStorage.removeItem('vdd_pending_prefs'); } catch(_) {}
+    } else {
+      try { localStorage.setItem('vdd_pending_prefs', bodyJson); } catch(_) {}
+    }
+  } catch(_) {
+    try { localStorage.setItem('vdd_pending_prefs', bodyJson); } catch(_) {}
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function subscribePush(prefs) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window))
+    throw new Error('Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.');
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') throw new Error('Berechtigung verweigert.');
+  const reg = await navigator.serviceWorker.register('sw.js');
+  await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+  const subJson = sub.toJSON();
+  const body = { endpoint: subJson.endpoint, keys: subJson.keys, notify_new_events: prefs.notify_new_events ?? true, notify_all_changes: prefs.notify_all_changes ?? false, favorites: prefs.notify_changes === 'none' ? [] : [...favs] };
+  const r = await fetch(PUSH_SERVER_URL + '/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error('Server-Fehler: ' + r.status);
+  try {
+    localStorage.setItem('vdd_push_sub', JSON.stringify({ endpoint: subJson.endpoint, keys: subJson.keys }));
+    localStorage.setItem('vdd_push_prefs', JSON.stringify({ notify_new_events: prefs.notify_new_events ?? true, notify_all_changes: prefs.notify_all_changes ?? false }));
+  } catch(_) {}
+}
+
+async function unsubscribePush() {
+  const subJson = localStorage.getItem('vdd_push_sub');
+  if (subJson) {
+    try {
+      const sub = JSON.parse(subJson);
+      await fetch(PUSH_SERVER_URL + '/unsubscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+    } catch(_) {}
+  }
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration('sw.js');
+      if (reg) { const ps = await reg.pushManager.getSubscription(); if (ps) await ps.unsubscribe(); }
+    } catch(_) {}
+  }
+  try { localStorage.removeItem('vdd_push_sub'); localStorage.removeItem('vdd_push_prefs'); localStorage.removeItem('vdd_pending_prefs'); } catch(_) {}
+}
+
+function buildSettingsHtml() {
+  const isSubscribed = !!localStorage.getItem('vdd_push_sub');
+  const prefs = JSON.parse(localStorage.getItem('vdd_push_prefs') || '{"notify_new_events":true,"notify_all_changes":false}');
+  // normalize legacy prefs that predate the three-way changes option
+  if (!prefs.notify_changes) prefs.notify_changes = prefs.notify_all_changes ? 'all' : 'favorites';
+  const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  if (!pushSupported) return '<p>Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.</p>';
+
+  const dis = isSubscribed ? '' : ' disabled';
+  const dim = isSubscribed ? '' : ' sn-disabled';
+  const nc = prefs.notify_changes;
+
+  function pill(val, label) {
+    return `<label class="sn-pill"><input type="radio" name="sn-changes" value="${val}"${nc === val ? ' checked' : ''}${dis}><span>${label}</span></label>`;
+  }
+
+  return `
+<div class="sn-row">
+  <div class="sn-row-text">
+    <span class="sn-label">Benachrichtigungen aktivieren</span>
+    <span class="sn-desc">Browser-Benachrichtigungen für Ritte erhalten</span>
+  </div>
+  <label class="sn-toggle">
+    <input type="checkbox" id="sn-enable"${isSubscribed ? ' checked' : ''}>
+    <span class="sn-toggle-track"></span>
+  </label>
+</div>
+<div class="sn-divider"></div>
+<div class="sn-row${dim}">
+  <div class="sn-row-text">
+    <span class="sn-label">Neue Ritte</span>
+    <span class="sn-desc">Bei neuen Ritten benachrichtigen</span>
+  </div>
+  <label class="sn-toggle">
+    <input type="checkbox" id="pref-new-events"${prefs.notify_new_events ? ' checked' : ''}${dis}>
+    <span class="sn-toggle-track"></span>
+  </label>
+</div>
+<div class="sn-divider"></div>
+<div class="sn-row-stack${dim}">
+  <div class="sn-row-text">
+    <span class="sn-label">Änderungen an Ritten</span>
+    <span class="sn-desc">Bei Zeit-, Ort- oder Detailänderungen</span>
+  </div>
+  <div class="sn-pill-group">
+    ${pill('none', 'Keine')}
+    ${pill('favorites', 'Favoriten')}
+    ${pill('all', 'Alle Ritte')}
+  </div>
+</div>`;
+}
+
+function wireSettingsModal() {
+  const body = document.getElementById('settings-modal-body');
+  function refresh() { body.innerHTML = buildSettingsHtml(); wireSettingsModal(); }
+
+  function savePref(key, value) {
+    const p = JSON.parse(localStorage.getItem('vdd_push_prefs') || '{}');
+    p[key] = value;
+    if (key === 'notify_changes') p.notify_all_changes = (value === 'all');
+    try { localStorage.setItem('vdd_push_prefs', JSON.stringify(p)); } catch(_) {}
+    schedulePrefSync();
+  }
+
+  const enableToggle = document.getElementById('sn-enable');
+  if (enableToggle) {
+    enableToggle.addEventListener('change', async () => {
+      enableToggle.disabled = true;
+      try {
+        if (enableToggle.checked) {
+          const prefs = JSON.parse(localStorage.getItem('vdd_push_prefs') || '{"notify_new_events":true,"notify_all_changes":false}');
+          await subscribePush(prefs);
+        } else {
+          await unsubscribePush();
+        }
+      } catch(err) {
+        enableToggle.checked = !enableToggle.checked;
+        enableToggle.disabled = false;
+        const errEl = document.createElement('div');
+        errEl.className = 'sn-error';
+        errEl.textContent = err.message;
+        enableToggle.closest('.sn-row').insertAdjacentElement('afterend', errEl);
+        return;
+      }
+      refresh();
+    });
+  }
+
+  const newEvChk = document.getElementById('pref-new-events');
+  if (newEvChk) newEvChk.addEventListener('change', () => savePref('notify_new_events', newEvChk.checked));
+
+  body.querySelectorAll('input[name="sn-changes"]').forEach(r => {
+    r.addEventListener('change', () => { if (r.checked) savePref('notify_changes', r.value); });
+  });
+}
+
+// ── state ─────────────────────────────────────────────────────────────────────
 let showVorrat = document.getElementById('show-vorrat').checked;
-let showVergangene = document.getElementById('show-vergangene').checked;
 const TODAY = new Date().toISOString().slice(0, 10);
 
-// ── map ────────────────────────────────────────────────────────────────────
+// ── status filter ─────────────────────────────────────────────────────────────
+const ALL_STATUSES = ['steht fest', 'vorläufig', 'abgesagt', 'vergangen'];
+let selectedStatuses = new Set();
+
+function getEventStatus(ev) {
+  const isPast = (ev.end_date || ev.start_date) < TODAY;
+  if (isPast) return 'vergangen';
+  const s = (ev.status || '').toLowerCase();
+  if (ev.rittvorrat || s.includes('abgesagt')) return 'abgesagt';
+  if (s.includes('vorl')) return 'vorläufig';
+  return 'steht fest';
+}
+
+// ── map ────────────────────────────────────────────────────────────────────────
 const BASEMAP_STYLE = 'https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_top.json';
-const BLANK_STYLE = { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#f8f8f8' } }] };
+const BLANK_STYLE = { version: 8, glyphs: 'https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/fonts/v2/{fontstack}/{range}.pbf', sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#f8f8f8' } }] };
 
 const map = new maplibregl.Map({
   container: 'map',
@@ -37,7 +248,7 @@ const map = new maplibregl.Map({
 });
 map.touchZoomRotate.disableRotation();
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-map.on('click', () => { if (openPopup) openPopup.remove(); });
+map.on('click', e => { if (!map.queryRenderedFeatures(e.point, { layers: ['clusters', 'events-unclustered'] }).length && openPopup) openPopup.remove(); });
 window.addEventListener('offline', () => { map.setStyle(BLANK_STYLE); setOfflineBanner(true); });
 window.addEventListener('online',  () => { map.setStyle(BASEMAP_STYLE); setOfflineBanner(false); });
 
@@ -46,29 +257,14 @@ function setOfflineBanner(offline) {
 }
 setOfflineBanner(!navigator.onLine);
 
-function markerColor(ev) {
+function markerPinName(ev) {
   const isPast = (ev.end_date || ev.start_date) < TODAY;
-  if (isPast) return '#9e9e9e';
-  if (ev.rittvorrat) return '#c62828';
+  if (isPast) return 'pin-grey';
+  if (ev.rittvorrat) return 'pin-red';
   const s = (ev.status || '').toLowerCase();
-  if (s.includes('abgesagt')) return '#c62828';
-  if (s.includes('vorl'))    return '#f9a825';
-  return '#2e7d32';
-}
-
-const _markerElCache = {};
-function makeMarkerEl(color) {
-  if (!_markerElCache[color]) {
-    const el = document.createElement('div');
-    el.style.cssText = 'width:22px;height:33px;cursor:pointer';
-    el.innerHTML = `<svg width="22" height="33" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24C24 5.37 18.63 0 12 0z"
-          fill="${color}" stroke="#fff" stroke-width="1.5"/>
-    <circle cx="12" cy="12" r="4.5" fill="#fff" opacity=".85"/>
-  </svg>`;
-    _markerElCache[color] = el;
-  }
-  return _markerElCache[color].cloneNode(true);
+  if (s.includes('abgesagt')) return 'pin-red';
+  if (s.includes('vorl'))    return 'pin-yellow';
+  return 'pin-green';
 }
 
 function kmOffsets(lat, km) {
@@ -117,9 +313,133 @@ function removeRadiusCircle() {
   }
 }
 
-const markers = {};
-
 let openPopup = null;
+let _currentGeoJSON = null;
+
+function eventsToGeoJSON(events) {
+  const groups = {};
+  events.filter(ev => ev.lat && ev.lon).forEach(ev => {
+    const key = `${ev.lat},${ev.lon}`;
+    (groups[key] = groups[key] || []).push(ev);
+  });
+  const features = [];
+  for (const group of Object.values(groups)) {
+    group.forEach((ev, i) => {
+      const lonOffset = group.length > 1 ? (i - (group.length - 1) / 2) * 0.0008 : 0;
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [ev.lon + lonOffset, ev.lat] },
+        properties: { id: ev.id, pinName: markerPinName(ev), name: ev.name }
+      });
+    });
+  }
+  return { type: 'FeatureCollection', features };
+}
+
+const PIN_COLORS = { 'pin-grey': '#9e9e9e', 'pin-red': '#c62828', 'pin-yellow': '#f9a825', 'pin-green': '#2e7d32' };
+
+function _makePinImageData(color) {
+  const svg = `<svg width="22" height="33" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24C24 5.37 18.63 0 12 0z"
+          fill="${color}" stroke="#fff" stroke-width="1.5"/>
+    <circle cx="12" cy="12" r="4.5" fill="#fff" opacity=".85"/>
+  </svg>`;
+  return new Promise((resolve, reject) => {
+    const img = new Image(22, 33);
+    img.onload = () => {
+      const c = document.createElement('canvas'); c.width = 22; c.height = 33;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, 22, 33);
+      resolve(ctx.getImageData(0, 0, 22, 33));
+    };
+    img.onerror = reject;
+    img.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
+  });
+}
+
+const _pinImagesReady = Promise.all(
+  Object.entries(PIN_COLORS).map(([name, color]) =>
+    _makePinImageData(color).then(data => [name, data])
+  )
+).then(entries => Object.fromEntries(entries));
+
+async function _addEventLayersToMap(geojson) {
+  if (map.getSource('events-source')) {
+    map.getSource('events-source').setData(geojson);
+    return;
+  }
+
+  const pinImages = await _pinImagesReady;
+  for (const [name, data] of Object.entries(pinImages)) {
+    if (!map.hasImage(name)) map.addImage(name, data);
+  }
+  map.addSource('events-source', {
+    type: 'geojson', data: geojson,
+    cluster: true, clusterMaxZoom: 11, clusterRadius: 38
+  });
+  map.addLayer({
+    id: 'clusters', type: 'circle', source: 'events-source',
+    filter: ['has', 'point_count'],
+    paint: {
+      'circle-color': '#1565c0',
+      'circle-radius': ['step', ['get', 'point_count'], 16, 5, 22, 20, 28],
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#fff'
+    }
+  });
+  map.addLayer({
+    id: 'cluster-count', type: 'symbol', source: 'events-source',
+    filter: ['has', 'point_count'],
+    layout: {
+      'text-field': '{point_count_abbreviated}',
+      'text-font': ['Noto Sans Regular'],
+      'text-size': 13
+    },
+    paint: { 'text-color': '#fff' }
+  });
+  map.addLayer({
+    id: 'events-unclustered', type: 'symbol', source: 'events-source',
+    filter: ['!', ['has', 'point_count']],
+    layout: {
+      'icon-image': ['get', 'pinName'],
+      'icon-anchor': 'bottom',
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    }
+  });
+
+  map.on('click', 'clusters', async e => {
+    const clusterId = e.features[0].properties.cluster_id;
+    const count = e.features[0].properties.point_count;
+    try {
+      const leaves = await map.getSource('events-source').getClusterLeaves(clusterId, count, 0);
+      const lons = leaves.map(f => f.geometry.coordinates[0]);
+      const lats = leaves.map(f => f.geometry.coordinates[1]);
+      map.fitBounds(
+        [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+        { padding: 80, maxZoom: 14 }
+      );
+    } catch(err) {
+      console.error('getClusterLeaves failed:', err);
+    }
+  });
+
+  map.on('click', 'events-unclustered', e => {
+    const ev = EVENTS.find(ev => ev.id === e.features[0].properties.id);
+    if (ev) focusEvent(ev);
+  });
+
+  map.on('mouseenter', 'clusters', () => { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'clusters', () => { map.getCanvas().style.cursor = ''; });
+  map.on('mouseenter', 'events-unclustered', e => {
+    map.getCanvas().style.cursor = 'pointer';
+    const ev = EVENTS.find(ev => ev.id === e.features[0].properties.id);
+    if (ev) preloadImg(ev);
+  });
+  map.on('mouseleave', 'events-unclustered', () => { map.getCanvas().style.cursor = ''; });
+}
+
+map.on('style.load', () => { if (_currentGeoJSON) _addEventLayersToMap(_currentGeoJSON).catch(() => {}); });
 
 function showEventPopup(ev) {
   const prev = openPopup;
@@ -168,22 +488,17 @@ function icsDownload(ev) {
   if (!ev.start_date) return;
   const pad = s => String(s).padStart(2, '0');
   const toDate = str => str.replace(/-/g, '');
-  // RFC 5545 TEXT escaping: backslash first, then real newlines → \n, then ; and ,
   const esc = s => String(s).replace(/\\/g, '\\\\').replace(/\r\n|\r|\n/g, '\\n').replace(/;/g, '\\;').replace(/,/g, '\\,');
-  // LOCATION escaping: newlines become ", " — Google rejects multi-line LOCATION with \n
   const locEsc = s => String(s).replace(/\\/g, '\\\\').replace(/\r\n|\r|\n/g, ', ').replace(/;/g, '\\;');
-  // RFC 5545 line folding: max 75 octets per line, continuation lines start with a space
   const fold = line => {
     const enc = new TextEncoder();
     if (enc.encode(line).length <= 75) return line;
     const parts = [];
     let i = 0;
     while (i < line.length) {
-      // find largest slice that fits within the byte budget (75 first, 74 for continuations due to leading space)
       const budget = i === 0 ? 75 : 74;
       let j = i + budget;
       if (j > line.length) j = line.length;
-      // don't split inside a surrogate pair or multi-byte char
       while (j > i && enc.encode(line.slice(i, j)).length > budget) j--;
       parts.push((i === 0 ? '' : ' ') + line.slice(i, j));
       i = j;
@@ -192,15 +507,12 @@ function icsDownload(ev) {
   };
   const umlaut = s => s.replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
     .replace(/Ä/g,'Ae').replace(/Ö/g,'Oe').replace(/Ü/g,'Ue').replace(/ß/g,'ss');
-  // UID must be ASCII-only per RFC 5545
   const asciiId = umlaut(ev.id || ev.wiki_title).replace(/[^a-zA-Z0-9_-]/g, '-');
-  // DTEND for all-day events is exclusive — add one day
   const endExcl = d => {
     const [y, m, day] = d.split('-').map(Number);
     const dt = new Date(Date.UTC(y, m - 1, day + 1));
     return `${dt.getUTCFullYear()}${pad(dt.getUTCMonth()+1)}${pad(dt.getUTCDate())}`;
   };
-  // DTSTAMP: current UTC timestamp (required by RFC 5545)
   const now = new Date();
   const dtstamp = `${now.getUTCFullYear()}${pad(now.getUTCMonth()+1)}${pad(now.getUTCDate())}T${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}Z`;
   const end = ev.end_date && ev.end_date !== ev.start_date ? ev.end_date : ev.start_date;
@@ -275,18 +587,24 @@ function popupDocsHtml(ev) {
 }
 
 const SHARE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>`;
+const POPUP_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18"><path class="popup-star-path" d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21Z"/></svg>`;
 document.getElementById('popup-modal-share').innerHTML = SHARE_ICON;
+document.getElementById('popup-modal-star').innerHTML = POPUP_STAR_SVG;
 
 function popupHtml(ev) {
   const name = escHtml(ev.name || ev.wiki_title);
   const title = ev.subtitle ? `${name} <small style="font-weight:400;opacity:.85">${escHtml(ev.subtitle)}</small>` : name;
   const docs = popupDocsHtml(ev);
   const footer = docs ? `<div class="popup-footer">${docs}</div>` : '';
-  return `<div class="popup-header"><span class="popup-header-title">${title}</span><button class="popup-header-close" onclick="shareCurrentUrl(this)" title="Link teilen" data-copied="✓">${SHARE_ICON}</button><button class="popup-header-close" onclick="if(openPopup)openPopup.remove()" title="Schließen">✕</button></div><div class="popup-body">${popupBodyHtml(ev)}</div>${footer}`;
+  const starred = favs.has(ev.id);
+  const safeId = escHtml(ev.id);
+  const starBtn = `<button class="popup-header-close popup-star${starred ? ' starred' : ''}" data-fav-id="${safeId}" title="${starred ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}">${POPUP_STAR_SVG}</button>`;
+  return `<div class="popup-header"><span class="popup-header-title">${title}</span>${starBtn}<button class="popup-header-close" onclick="shareCurrentUrl(this)" title="Link teilen" data-copied="✓">${SHARE_ICON}</button><button class="popup-header-close" onclick="if(openPopup)openPopup.remove()" title="Schließen">✕</button></div><div class="popup-body">${popupBodyHtml(ev)}</div>${footer}`;
 }
 
-// ── filter logic ───────────────────────────────────────────────────────────
+// ── filter logic ───────────────────────────────────────────────────────────────
 let filterText = '';
+let selectedFavStates = new Set();
 let userLat = null, userLon = null, radiusKm = 250;
 let userMarker = null;
 let selectedRegion = '';
@@ -303,7 +621,11 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 
 function eventVisible(ev) {
   if (ev.rittvorrat && !showVorrat) return false;
-  if (!showVergangene && (ev.end_date || ev.start_date) < TODAY) return false;
+  if (selectedFavStates.size > 0) {
+    const isFav = favs.has(ev.id);
+    if (!((selectedFavStates.has('fav') && isFav) || (selectedFavStates.has('unfav') && !isFav))) return false;
+  }
+  if (selectedStatuses.size > 0 && !selectedStatuses.has(getEventStatus(ev))) return false;
   if (selectedRegion && ev.region !== selectedRegion) return false;
   if (selectedEventTypes.size > 0) {
     if (!ev.event_types_arr.some(t => selectedEventTypes.has(t))) return false;
@@ -362,13 +684,21 @@ function updateLegend() {
   ).join('');
 }
 
-// ── column formatters ───────────────────────────────────────────────────────
+// ── column formatters ──────────────────────────────────────────────────────────
 function fmtName(cell) {
   const ev = cell.getRow().getData();
   const name = ev.name || ev.wiki_title;
-  let html = name;
+  let html = escHtml(name);
   if (!ev.lat) html += '<span class="no-map-badge">kein GPS</span>';
   return html;
+}
+
+const STAR_SVG = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path class="star-path" d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21Z"/></svg>`;
+
+function fmtFav(cell) {
+  const ev = cell.getRow().getData();
+  const starred = favs.has(ev.id);
+  return `<span class="fav-star${starred ? ' starred' : ''}" data-id="${escHtml(ev.id)}" title="${starred ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}">${STAR_SVG}</span>`;
 }
 
 function fmtDate(cell) { return dateRange(cell.getRow().getData()); }
@@ -401,14 +731,14 @@ function fmtLink(cell) {
   return `<a href="${url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${escHtml(label)}</a>`;
 }
 
-// ── MiniTable — lightweight table ──────────────────────────────────────────
-// API: setFilter, getRow, scrollToRow, on(tableBuilt|rowClick|rowMouseEnter|dataFiltered)
+// ── MiniTable — lightweight table ──────────────────────────────────────────────
 class MiniTable {
   #data; #idx; #cols; #rowFmt; #filterFn = null;
   #sortField; #sortDir; #container;
   #tbody; #headerCells = [];
-  #rowMap = new Map(); // id → { tr, data }
+  #rowMap = new Map();
   #listeners = {};
+  #priorityFn = null;
 
   constructor(selector, { data, index, columns, rowFormatter, initialSort }) {
     this.#data     = data;
@@ -459,10 +789,15 @@ class MiniTable {
   }
 
   #getSorted(arr) {
-    if (!this.#sortField) return arr;
+    if (!this.#sortField && !this.#priorityFn) return arr;
     const col = this.#cols.find(c => c.field === this.#sortField);
     const num = col?.sorter === 'number';
     return [...arr].sort((a, b) => {
+      if (this.#priorityFn) {
+        const pc = this.#priorityFn(a, b);
+        if (pc !== 0) return pc;
+      }
+      if (!this.#sortField) return 0;
       let av = a[this.#sortField], bv = b[this.#sortField];
       if (num) { av = +av || 0; bv = +bv || 0; }
       else     { av = av ?? ''; bv = bv ?? ''; }
@@ -472,7 +807,12 @@ class MiniTable {
   }
 
   #toggleSort(field) {
-    this.#sortDir   = this.#sortField === field && this.#sortDir === 'asc' ? 'desc' : 'asc';
+    if (this.#sortField === field) {
+      this.#sortDir = this.#sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      const col = this.#cols.find(c => c.field === field);
+      this.#sortDir = col?.initialSortDir ?? 'asc';
+    }
     this.#sortField = field;
     this.#updateArrows();
     this.#reapply();
@@ -526,7 +866,8 @@ class MiniTable {
       sorted.map(d => { const e = this.#rowMap.get(d[this.#idx]); return e ? this.#rowProxy(e.tr, e.data) : null; }).filter(Boolean));
   }
 
-  setFilter(fn)   { this.#filterFn = fn; this.#reapply(); }
+  setFilter(fn)      { this.#filterFn = fn; this.#reapply(); }
+  setPriorityFn(fn)  { this.#priorityFn = fn; this.#reapply(); }
   getRow(id)      { const e = this.#rowMap.get(id); return e ? this.#rowProxy(e.tr, e.data) : null; }
   scrollToRow(id) { this.#rowMap.get(id)?.tr.scrollIntoView({ block: 'nearest', behavior: 'instant' }); return Promise.resolve(); }
   on(ev, fn)      { (this.#listeners[ev] ??= []).push(fn); return this; }
@@ -542,6 +883,7 @@ function initTable(data) {
     index: "id",
     initialSort: [{ column: "start_date", dir: "asc" }],
     columns: [
+      { title: "★",                 field: "_fav",               formatter: fmtFav,   sorter: "number", frozen: true, width: 26, headerTooltip: "Favorit", initialSortDir: "desc" },
       { title: "Name",              field: "name",               formatter: fmtName,                                          frozen: true, width: window.innerWidth <= 768 ? 115 : 160, tooltip: (e, cell) => cell.getData().name },
       { title: "Datum",             field: "start_date",         formatter: fmtDate,          width: 95 },
       { title: "EFR",               field: "efr",                width: 37, headerSort: false, headerTooltip: "Einführungsritt (25–40 km)",          tooltip: true },
@@ -551,7 +893,7 @@ function initTable(data) {
       { title: "MTR",               field: "mtr",                width: 40, headerSort: false, headerTooltip: "Mehrtagesritt",                         tooltip: true },
       { title: "CEI",               field: "cei",                width: 25, headerSort: false, headerTooltip: "Concours d'Endurance International",    tooltip: true },
       { title: "Ausschreibung",     field: "announcement_pdf",   formatter: fmtPdf("announcement_pdf", "announcement_updated"), sorter: false, width: 40, headerTooltip: "Ausschreibung (PDF)" },
-      { title: "Ergebnisse",     field: "results_pdf",        formatter: fmtPdf("results_pdf", null),                      sorter: false, width: 40, headerTooltip: "Ergebnisliste (PDF)" },
+      { title: "Ergebnisse",        field: "results_pdf",        formatter: fmtPdf("results_pdf", null),                      sorter: false, width: 40, headerTooltip: "Ergebnisliste (PDF)" },
       { title: "Nennformular",      field: "registration_pdf",   formatter: fmtPdf("registration_pdf", null),                 sorter: false, width: 40, headerTooltip: "Nennformular (PDF)" },
       { title: "Kalender",          field: "start_date",         formatter: fmtIcs,                                           sorter: false, width: 40, headerTooltip: "Termin als ICS-Datei herunterladen", headerSort: false },
       { title: "Geändert",          field: "wiki_touched",       formatter: cell => fmtDateDe(cell.getValue()),               width: 55,     headerTooltip: "Letzte Änderung auf der VDD-Wiki-Seite" },
@@ -588,21 +930,38 @@ function initTable(data) {
     }
   });
 
-  tbl.on("rowClick",      (_e, row) => focusEvent(row.getData()));
+  tbl.on("rowClick", (e, row) => {
+    if (e.target.closest('.fav-star')) return;
+    focusEvent(row.getData());
+  });
   tbl.on("rowMouseEnter", (_e, row) => { preloadImg(row.getData()); });
 
   tbl.on("dataFiltered", (_filters, rows) => {
     const visibleIds = new Set(rows.map(r => r.getData().id));
     if (activeId && !visibleIds.has(activeId) && openPopup) openPopup.remove();
-    EVENTS.forEach(ev => {
-      if (!markers[ev.id]) return;
-      visibleIds.has(ev.id) ? markers[ev.id].addTo(map) : markers[ev.id].remove();
-    });
+    _currentGeoJSON = eventsToGeoJSON(EVENTS.filter(ev => visibleIds.has(ev.id)));
+    const src = map.getSource('events-source');
+    if (src) src.setData(_currentGeoJSON);
     document.getElementById('count').textContent = `${rows.length} / ${EVENTS.length}`;
   });
 }
 
-// ── interaction ────────────────────────────────────────────────────────────
+// ── star clicks (table + desktop popup) ───────────────────────────────────────
+document.getElementById('grid').addEventListener('click', e => {
+  const star = e.target.closest('.fav-star') ||
+               (e.target.tagName === 'TD' ? e.target.querySelector('.fav-star') : null);
+  if (!star) return;
+  e.stopPropagation();
+  toggleFav(star.dataset.id);
+}, true);
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.popup-star[data-fav-id]');
+  if (!btn) return;
+  toggleFav(btn.dataset.favId);
+});
+
+// ── interaction ────────────────────────────────────────────────────────────────
 function isMobileViewport() {
   return window.matchMedia('(max-width: 860px)').matches;
 }
@@ -617,6 +976,12 @@ function showModalPopup(ev) {
   const footer = document.getElementById('popup-modal-footer');
   footer.innerHTML = docs;
   footer.style.display = docs ? '' : 'none';
+  // Update star
+  const star = document.getElementById('popup-modal-star');
+  star.dataset.favId = ev.id;
+  const _s = favs.has(ev.id);
+  star.classList.toggle('starred', _s);
+  star.title = _s ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen';
   modal.classList.add('show');
 }
 
@@ -630,6 +995,19 @@ function hideModalPopup() {
 }
 
 document.getElementById('popup-modal-close').addEventListener('click', hideModalPopup);
+
+function resetModalStar() {
+  const star = document.getElementById('popup-modal-star');
+  if (star) { star.dataset.favId = ''; star.innerHTML = POPUP_STAR_SVG; star.classList.remove('starred'); }
+}
+
+document.getElementById('popup-modal-star').addEventListener('click', () => {
+  const star = document.getElementById('popup-modal-star');
+  const id = star.dataset.favId;
+  if (!id) return;
+  toggleFav(id);
+  // toggleFav already updates the star DOM, nothing extra needed here
+});
 
 function shareCurrentUrl(feedbackEl) {
   const url = window.location.origin + window.location.pathname + window.location.hash;
@@ -659,6 +1037,7 @@ document.addEventListener('click', e => {
   if (!link || navigator.onLine) return;
   e.preventDefault();
   e.stopPropagation();
+  resetModalStar();
   document.getElementById('popup-modal-title').textContent = 'Offline – PDF nicht verfügbar';
   document.getElementById('popup-modal-body').innerHTML =
     '<p style="margin:0;line-height:1.5">PDFs können nur online geöffnet werden. ' +
@@ -685,7 +1064,7 @@ function highlightRow(id) {
 function focusEvent(ev) {
   history.replaceState(null, '', '#' + encodeURIComponent(ev.id));
   highlightRow(ev.id);
-  if (markers[ev.id]) {
+  if (ev.lat && ev.lon) {
     if (isMobileViewport()) {
       showModalPopup(ev);
     } else {
@@ -704,9 +1083,9 @@ function focusEvent(ev) {
   }
 }
 
-// ── filter bar ─────────────────────────────────────────────────────────────
+// ── filter bar ─────────────────────────────────────────────────────────────────
 function updateClearFiltersBtn() {
-  const active = selectedRegion || selectedEventTypes.size || selectedDistances.size;
+  const active = selectedFavStates.size || selectedRegion || selectedEventTypes.size || selectedDistances.size || selectedStatuses.size;
   document.getElementById('btn-clear-filters').style.display = active ? '' : 'none';
 }
 
@@ -726,20 +1105,44 @@ document.querySelectorAll('[data-dist]').forEach(btn => {
   });
 });
 
+document.querySelectorAll('[data-status]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const s = btn.dataset.status;
+    btn.classList.toggle('active');
+    btn.classList.contains('active') ? selectedStatuses.add(s) : selectedStatuses.delete(s);
+    updateClearFiltersBtn();
+    applyFilters();
+  });
+});
+
+document.querySelectorAll('[data-fav]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const f = btn.dataset.fav;
+    btn.classList.toggle('active');
+    btn.classList.contains('active') ? selectedFavStates.add(f) : selectedFavStates.delete(f);
+    updateClearFiltersBtn();
+    applyFilters();
+  });
+});
+
 document.getElementById('btn-clear-filters').addEventListener('click', () => {
-  selectedRegion = ''; selectedEventTypes.clear(); selectedDistances.clear();
-  document.getElementById('region-select').value = '';
+  selectedFavStates.clear();
+  selectedRegion = '';
+  selectedEventTypes.clear();
+  selectedDistances.clear();
+  selectedStatuses.clear();
   document.querySelectorAll('.tog.active').forEach(b => b.classList.remove('active'));
+  document.getElementById('region-select').value = '';
   updateClearFiltersBtn();
   applyFilters();
 });
 
-// ── controls ───────────────────────────────────────────────────────────────
+// ── controls ───────────────────────────────────────────────────────────────────
 document.getElementById('show-vorrat').addEventListener('change', e => {
   showVorrat = e.target.checked;
   applyFilters();
   if (showVorrat) {
-    const modal = document.getElementById('popup-modal');
+    resetModalStar();
     document.getElementById('popup-modal-title').textContent = 'Hinweis: Rittvorrat';
     document.getElementById('popup-modal-body').innerHTML =
       '<p style="margin:0 0 10px;line-height:1.5">Der <strong>Rittvorrat</strong> enthält ältere Einträge, ' +
@@ -749,13 +1152,8 @@ document.getElementById('show-vorrat').addEventListener('change', e => {
       'Vielleicht kannst du dabei helfen, einen Ritt wieder aufleben zu lassen. ' +
       'Möglicherweise kannst du dich mit dem Veranstalter in Verbindung setzen.</p>';
     document.getElementById('popup-modal-footer').innerHTML = '';
-    modal.classList.add('show');
+    document.getElementById('popup-modal').classList.add('show');
   }
-});
-
-document.getElementById('show-vergangene').addEventListener('change', e => {
-  showVergangene = e.target.checked;
-  applyFilters();
 });
 
 const searchEl      = document.getElementById('search');
@@ -852,7 +1250,61 @@ document.getElementById('radius-slider').addEventListener('input', e => {
   }
 });
 
-// ── data caching ───────────────────────────────────────────────────────────
+// ── burger menu ────────────────────────────────────────────────────────────────
+(function () {
+  const burgerBtn = document.getElementById('burger-btn');
+  const drawer    = document.getElementById('burger-drawer');
+  const backdrop  = document.getElementById('burger-backdrop');
+
+  function openDrawer() {
+    drawer.classList.add('open');
+    backdrop.classList.add('show');
+  }
+  function closeDrawer() {
+    drawer.classList.remove('open');
+    backdrop.classList.remove('show');
+  }
+
+  burgerBtn.addEventListener('click', () => {
+    drawer.classList.contains('open') ? closeDrawer() : openDrawer();
+  });
+  backdrop.addEventListener('click', closeDrawer);
+
+  // Open modal on burger item click
+  drawer.querySelectorAll('.burger-item[data-modal]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const modalId = btn.dataset.modal;
+      closeDrawer();
+      if (modalId === 'settings-modal') {
+        document.getElementById('settings-modal-body').innerHTML = buildSettingsHtml();
+        wireSettingsModal();
+      }
+      document.getElementById(modalId).classList.add('show');
+    });
+  });
+})();
+
+// ── generic modal close (std-modal) ───────────────────────────────────────────
+document.querySelectorAll('.std-modal-close').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.getElementById(btn.dataset.modal).classList.remove('show');
+  });
+});
+document.querySelectorAll('.std-modal').forEach(modal => {
+  modal.addEventListener('click', e => {
+    if (e.target === modal) modal.classList.remove('show');
+  });
+});
+
+// ── info modal ─────────────────────────────────────────────────────────────────
+document.getElementById('info-modal-close').addEventListener('click', () =>
+  document.getElementById('info-modal').classList.remove('show')
+);
+document.getElementById('info-modal').addEventListener('click', e => {
+  if (e.target.id === 'info-modal') document.getElementById('info-modal').classList.remove('show');
+});
+
+// ── data caching ───────────────────────────────────────────────────────────────
 async function loadVddData() {
   const KEY = 'vdd_d', TS = 'vdd_t', SA = 'vdd_sa';
   const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -884,8 +1336,13 @@ async function loadVddData() {
   }
 }
 
-// ── load data ──────────────────────────────────────────────────────────────
+// ── load data ──────────────────────────────────────────────────────────────────
 (async function () {
+  // Sync pending preference changes if back online
+  if (navigator.onLine && localStorage.getItem('vdd_pending_prefs')) {
+    syncPrefsToServer().catch(() => {});
+  }
+
   const initialQ = new URL(window.location.href).searchParams.get('q');
   if (initialQ) {
     filterText = initialQ;
@@ -905,7 +1362,8 @@ async function loadVddData() {
   const { events, scraped_at } = _vd;
   EVENTS = events.map((ev, i) => {
     const strip = f => ev[f] ? String(ev[f]).replace(/\s+/g, '') : ev[f];
-    return { ...ev, id: ev.id ?? ev.wiki_title ?? String(i), event_types_arr: (ev.event_types || '').split(',').map(s => s.trim()).filter(Boolean), efr: strip('efr'), kdr: strip('kdr'), mdr: strip('mdr'), ldr: strip('ldr'), mtr: strip('mtr'), cei: strip('cei') };
+    const id = ev.id ?? ev.wiki_title ?? String(i);
+    return { ...ev, id, event_types_arr: (ev.event_types || '').split(',').map(s => s.trim()).filter(Boolean), _fav: favs.has(id) ? 1 : 0, efr: strip('efr'), kdr: strip('kdr'), mdr: strip('mdr'), ldr: strip('ldr'), mtr: strip('mtr'), cei: strip('cei') };
   });
 
   const lastChanged = EVENTS.filter(e => e.wiki_touched).sort((a, b) => b.wiki_touched.localeCompare(a.wiki_touched))[0];
@@ -953,16 +1411,6 @@ async function loadVddData() {
     })
     .catch(() => {});
 
-  document.getElementById('btn-info').addEventListener('click', () =>
-    document.getElementById('info-modal').classList.add('show')
-  );
-  document.getElementById('info-modal-close').addEventListener('click', () =>
-    document.getElementById('info-modal').classList.remove('show')
-  );
-  document.getElementById('info-modal').addEventListener('click', e => {
-    if (e.target.id === 'info-modal') document.getElementById('info-modal').classList.remove('show');
-  });
-
   // populate region dropdown
   const regionSel = document.getElementById('region-select');
   [...new Set(EVENTS.map(e => e.region).filter(Boolean))].sort().forEach(r => {
@@ -986,17 +1434,13 @@ async function loadVddData() {
     typeRow.appendChild(btn);
   });
 
-  EVENTS.forEach(ev => {
-    if (ev.lat && ev.lon) {
-      const el = makeMarkerEl(markerColor(ev));
-      el.addEventListener('mouseover', () => preloadImg(ev));
-      el.addEventListener('click', () => focusEvent(ev));
-      markers[ev.id] = new maplibregl.Marker({ element: el, anchor: 'bottom' })
-        .setLngLat([ev.lon, ev.lat]);
-    }
+  await new Promise(resolve => {
+    if (map.isStyleLoaded()) { resolve(); return; }
+    map.once('style.load', resolve);
   });
+  _currentGeoJSON = eventsToGeoJSON(EVENTS);
+  await _addEventLayersToMap(_currentGeoJSON).catch(err => console.error('addEventLayers failed:', err));
 
-  // Yield to let the map paint before building the table.
   await new Promise(r => setTimeout(r, 0));
   initTable(EVENTS);
 })();
