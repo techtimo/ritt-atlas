@@ -1,24 +1,29 @@
-app = "vdd-rittatlas-server"
-primary_region = "fra"
+# fly.toml app configuration file generated for vdd-rittatlas-server on 2026-06-08T13:06:31Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'vdd-rittatlas-server'
+primary_region = 'fra'
 
 [build]
 
 [env]
-  DB_PATH = "/data/push.db"
-  ALLOWED_ORIGIN = "https://techtimo.github.io"
-  PUSH_TTL = "86400"
+  ALLOWED_ORIGIN = 'https://techtimo.github.io,http://localhost:3000'
+  DB_PATH = '/data/push.db'
+  PUSH_TTL = '86400'
+
+[[mounts]]
+  source = 'push_data'
+  destination = '/data'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
-[[mounts]]
-  source = "push_data"
-  destination = "/data"
-
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "256mb"
+  size = 'shared-cpu-1x'
+  memory = '256mb'
