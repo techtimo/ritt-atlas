@@ -286,7 +286,7 @@ const map = new maplibregl.Map({
 });
 map.touchZoomRotate.disableRotation();
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-map.on('click', e => { if (!map.queryRenderedFeatures(e.point, { layers: ['clusters', 'events-unclustered'] }).length && openPopup) openPopup.remove(); });
+map.on('click', e => { if (!map.queryRenderedFeatures(e.point, { layers: ['events-unclustered'] }).length && openPopup) openPopup.remove(); });
 window.addEventListener('offline', () => { map.setStyle(BLANK_STYLE); setOfflineBanner(true); });
 window.addEventListener('online',  () => { map.setStyle(BASEMAP_STYLE); setOfflineBanner(false); });
 
@@ -412,32 +412,10 @@ async function _addEventLayersToMap(geojson) {
     if (!map.hasImage(name)) map.addImage(name, data);
   }
   map.addSource('events-source', {
-    type: 'geojson', data: geojson,
-    cluster: true, clusterMaxZoom: 11, clusterRadius: 38
-  });
-  map.addLayer({
-    id: 'clusters', type: 'circle', source: 'events-source',
-    filter: ['has', 'point_count'],
-    paint: {
-      'circle-color': '#1565c0',
-      'circle-radius': ['step', ['get', 'point_count'], 16, 5, 22, 20, 28],
-      'circle-stroke-width': 2,
-      'circle-stroke-color': '#fff'
-    }
-  });
-  map.addLayer({
-    id: 'cluster-count', type: 'symbol', source: 'events-source',
-    filter: ['has', 'point_count'],
-    layout: {
-      'text-field': '{point_count_abbreviated}',
-      'text-font': ['Noto Sans Regular'],
-      'text-size': 13
-    },
-    paint: { 'text-color': '#fff' }
+    type: 'geojson', data: geojson
   });
   map.addLayer({
     id: 'events-unclustered', type: 'symbol', source: 'events-source',
-    filter: ['!', ['has', 'point_count']],
     layout: {
       'icon-image': ['get', 'pinName'],
       'icon-anchor': 'bottom',
@@ -446,29 +424,11 @@ async function _addEventLayersToMap(geojson) {
     }
   });
 
-  map.on('click', 'clusters', async e => {
-    const clusterId = e.features[0].properties.cluster_id;
-    const count = e.features[0].properties.point_count;
-    try {
-      const leaves = await map.getSource('events-source').getClusterLeaves(clusterId, count, 0);
-      const lons = leaves.map(f => f.geometry.coordinates[0]);
-      const lats = leaves.map(f => f.geometry.coordinates[1]);
-      map.fitBounds(
-        [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
-        { padding: 80, maxZoom: 14 }
-      );
-    } catch(err) {
-      console.error('getClusterLeaves failed:', err);
-    }
-  });
-
   map.on('click', 'events-unclustered', e => {
     const ev = EVENTS.find(ev => ev.id === e.features[0].properties.id);
     if (ev) focusEvent(ev);
   });
 
-  map.on('mouseenter', 'clusters', () => { map.getCanvas().style.cursor = 'pointer'; });
-  map.on('mouseleave', 'clusters', () => { map.getCanvas().style.cursor = ''; });
   map.on('mouseenter', 'events-unclustered', e => {
     map.getCanvas().style.cursor = 'pointer';
     const ev = EVENTS.find(ev => ev.id === e.features[0].properties.id);
