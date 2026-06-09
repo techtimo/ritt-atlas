@@ -1452,8 +1452,13 @@ async function loadVddData() {
       if (!commit?.sha) return;
       const sha = commit.sha.slice(0, 7);
       document.getElementById('info-version').textContent = `${sha} (${timeAgo(commit.commit.committer.date)})`;
+      const knownSha = localStorage.getItem('vdd_app_sha');
+      if (!knownSha) { localStorage.setItem('vdd_app_sha', sha); return; }
+      if (knownSha !== sha) document.getElementById('update-banner').classList.add('show');
     })
     .catch(() => {});
+
+  document.getElementById('update-reload').addEventListener('click', () => location.reload());
 
   // populate region dropdown
   const regionSel = document.getElementById('region-select');
