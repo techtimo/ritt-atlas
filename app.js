@@ -287,6 +287,13 @@ const map = new maplibregl.Map({
 map.touchZoomRotate.disableRotation();
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 map.on('click', e => { if (!map.queryRenderedFeatures(e.point, { layers: ['events-unclustered'] }).length && openPopup) openPopup.remove(); });
+map.on('moveend', () => {
+  if (_programmaticMapMove) { _programmaticMapMove = false; return; }
+  mapBounds = map.getBounds();
+  _filterFromMapMove = true;
+  applyFilters();
+  _filterFromMapMove = false;
+});
 window.addEventListener('offline', () => { map.setStyle(BLANK_STYLE); setOfflineBanner(true); });
 window.addEventListener('online',  () => { map.setStyle(BASEMAP_STYLE); setOfflineBanner(false); });
 
@@ -617,6 +624,10 @@ let userMarker = null;
 let selectedRegion = '';
 let selectedEventTypes = new Set();
 let selectedDistances = new Set();
+let mapBounds = null;
+let _programmaticMapMove = false;
+let _filterFromMapMove = false;
+let _tableReady = false;
 
 function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371, rad = Math.PI / 180;
@@ -644,12 +655,15 @@ function eventVisible(ev) {
   }
   if (filterText) {
     const q = filterText.toLowerCase();
-    return [ev.wiki_title, ev.name, ev.subtitle, ev.region, ev.venue,
-            ev.event_types, ev.organizer, ev.status]
-      .some(v => v && v.toLowerCase().includes(q));
+    if (![ev.wiki_title, ev.name, ev.subtitle, ev.region, ev.venue,
+          ev.event_types, ev.organizer, ev.status]
+        .some(v => v && v.toLowerCase().includes(q))) return false;
   } else if (userLat !== null) {
     if (!ev.lat || !ev.lon) return false;
-    return haversineKm(userLat, userLon, ev.lat, ev.lon) <= radiusKm;
+    if (haversineKm(userLat, userLon, ev.lat, ev.lon) > radiusKm) return false;
+  }
+  if (mapBounds && ev.lat && ev.lon) {
+    if (!mapBounds.contains([ev.lon, ev.lat])) return false;
   }
   return true;
 }
@@ -929,6 +943,7 @@ function initTable(data) {
 
   tbl.on("tableBuilt", () => {
     applyFilters();
+    _tableReady = true;
     requestAnimationFrame(() => { map.resize(); fitVisibleMarkers(); });
     const hash = window.location.hash.slice(1);
     if (hash) {
@@ -950,6 +965,18 @@ function initTable(data) {
     const src = map.getSource('events-source');
     if (src) src.setData(_currentGeoJSON);
     document.getElementById('count').textContent = `${rows.length} / ${EVENTS.length}`;
+
+    if (_tableReady && !_filterFromMapMove && !_programmaticMapMove) {
+      const evs = rows.map(r => r.getData()).filter(ev => ev.lat && ev.lon);
+      if (evs.length > 0) {
+        const lons = evs.map(ev => ev.lon), lats = evs.map(ev => ev.lat);
+        _programmaticMapMove = true;
+        map.fitBounds(
+          [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+          { padding: 60, duration: 1000, maxZoom: 14 }
+        );
+      }
+    }
   });
 }
 
@@ -1083,6 +1110,7 @@ function focusEvent(ev) {
           const _popupH  = _popupEl ? _popupEl.getBoundingClientRect().height : 250;
           const _needed  = 15 + _popupH + 38;
           const _topPad  = Math.max(15, Math.min(2 * _needed - _mapH, _mapH - 50));
+          _programmaticMapMove = true;
           map.flyTo({ center: [ev.lon, ev.lat], zoom: map.getZoom(), padding: { top: _topPad } });
         });
       });
@@ -1138,6 +1166,7 @@ document.getElementById('btn-clear-filters').addEventListener('click', () => {
   selectedEventTypes.clear();
   selectedDistances.clear();
   selectedStatuses.clear();
+  mapBounds = null;
   document.querySelectorAll('.tog.active').forEach(b => b.classList.remove('active'));
   document.getElementById('region-select').value = '';
   updateClearFiltersBtn();
@@ -1194,6 +1223,8 @@ function fitVisibleMarkers() {
   const evs = EVENTS.filter(e => e.lat && e.lon);
   if (!evs.length) return;
   const lons = evs.map(e => e.lon), lats = evs.map(e => e.lat);
+  mapBounds = null;
+  _programmaticMapMove = true;
   map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], { padding: 25 });
 }
 
@@ -1235,6 +1266,7 @@ document.getElementById('btn-locate').addEventListener('click', () => {
     radiusKm = +document.getElementById('radius-slider').value || 250;
     showRadiusCircle(userLat, userLon, radiusKm);
     map.resize();
+    _programmaticMapMove = true;
     map.fitBounds(radiusBounds(userLat, userLon, radiusKm), { padding: 25 });
     btn.textContent = '✕ Löschen';
     btn.disabled = false;
@@ -1252,6 +1284,7 @@ document.getElementById('radius-slider').addEventListener('input', e => {
   document.getElementById('radius-label').textContent = radiusKm + ' km';
   if (userLat !== null) {
     showRadiusCircle(userLat, userLon, radiusKm);
+    _programmaticMapMove = true;
     map.fitBounds(radiusBounds(userLat, userLon, radiusKm), { padding: 25 });
     applyFilters();
   }
