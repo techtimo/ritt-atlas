@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script>
+const u = new URLSearchParams(location.search).get('url');
+if (u && /^https:\/\//.test(u)) location.replace(u);
+</script>
+</head>
+</html>

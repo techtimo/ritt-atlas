@@ -49,8 +49,11 @@ def find_event(events, event_id=None):
 def build_mock_notification(event):
     event_id = event["id"]
     fake_pdf = "Ergebnisliste_Mock_2026.pdf"
+    pdf_url = WIKI_FILE + urllib.parse.quote(fake_pdf, safe="")
+    event_url = SITE_URL + "#" + urllib.parse.quote(event_id)
     doc_urls = {
-        "results": WIKI_FILE + urllib.parse.quote(fake_pdf, safe=""),
+        "results": pdf_url,
+        "open": event_url,
     }
     actions = [
         {"action": "results", "title": "Ergebnisliste", "icon": ICON_ACTION},
@@ -61,7 +64,7 @@ def build_mock_notification(event):
         "event_id": event_id,
         "title": event.get("name", event_id),
         "body": "Ergebnisliste verfügbar",
-        "url": SITE_URL + "#" + urllib.parse.quote(event_id),
+        "url": SITE_URL + "redirect.html?url=" + urllib.parse.quote(pdf_url, safe=""),
         "tag": event_id,
         "actions": actions,
         "doc_urls": doc_urls,

@@ -507,6 +507,15 @@ function fmtDateDe(iso) {
   return `${d}.${m}.${y.slice(2)}`;
 }
 
+function timeAgo(date) {
+  const mins = Math.round((Date.now() - new Date(date)) / 60000);
+  if (mins < 2)         return 'gerade eben';
+  if (mins < 60)        return `vor ${mins} Min.`;
+  if (mins < 1440)      return `vor ${Math.round(mins / 60)} Std.`;
+  const days = Math.round(mins / 1440);
+  return `vor ${days} Tag${days === 1 ? '' : 'en'}`;
+}
+
 function dateRange(ev) {
   if (!ev.start_date) return '–';
   if (!ev.end_date || ev.start_date === ev.end_date) return fmtDateDe(ev.start_date);
@@ -1426,13 +1435,7 @@ async function loadVddData() {
     .then(d => {
       const run = d?.workflow_runs?.[0];
       if (!run) return;
-      const mins = Math.round((Date.now() - new Date(run.updated_at)) / 60000);
-      let ago;
-      if (mins < 2)        ago = 'gerade eben';
-      else if (mins < 60)  ago = `vor ${mins} Min.`;
-      else if (mins < 120) ago = 'vor 1 Std.';
-      else                 ago = `vor ${Math.round(mins / 60)} Std.`;
-      document.getElementById('info-geprueft').textContent = ago;
+      document.getElementById('info-geprueft').textContent = timeAgo(run.updated_at);
       if (fromCache && new Date(run.updated_at).getTime() > cacheTs) {
         fetch('data.min.json', { cache: 'no-store' })
           .then(r => r.json())
@@ -1446,6 +1449,16 @@ async function loadVddData() {
           })
           .catch(() => {});
       }
+    })
+    .catch(() => {});
+
+  fetch('https://api.github.com/repos/techtimo/vdd-rittatlas/commits?per_page=1')
+    .then(r => r.ok ? r.json() : null)
+    .then(d => {
+      const commit = d?.[0];
+      if (!commit?.sha) return;
+      const sha = commit.sha.slice(0, 7);
+      document.getElementById('info-version').textContent = `${sha} (${timeAgo(commit.commit.committer.date)})`;
     })
     .catch(() => {});
 

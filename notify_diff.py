@@ -104,24 +104,34 @@ def build_event_change_body(event, changed_groups):
 def build_event_change_notification(event, changed_groups):
     event_id = event["id"]
     group_names = {g[2] for g in changed_groups}
-    doc_urls = {
+    event_url = SITE_URL + "#" + urllib.parse.quote(event_id)
+    pdf_doc_urls = {
         group: WIKI_FILE + urllib.parse.quote(event[field], safe="")
         for group, field, _ in DOC_GROUPS
         if group in group_names and event.get(field)
     }
+    # "open" lets the SW resolve "Zum Ritt" to the event page via doc_urls
+    doc_urls = {**pdf_doc_urls, "open": event_url}
     actions = [
         {"action": group, "title": label, "icon": ICON_ACTION}
         for group, _, label in DOC_GROUPS
-        if group in doc_urls
+        if group in pdf_doc_urls
     ]
     if len(actions) < 2:
         actions.append(ACTION_OPEN)
+    # For single-PDF notifications put the redirect URL as the body-tap target
+    # so tapping anywhere on the notification opens the PDF, not just the action button.
+    if len(pdf_doc_urls) == 1:
+        primary_pdf = next(iter(pdf_doc_urls.values()))
+        url = SITE_URL + "redirect.html?url=" + urllib.parse.quote(primary_pdf, safe="")
+    else:
+        url = event_url
     return {
         "category": "event_change",
         "event_id": event_id,
         "title": event.get("name", event_id),
         "body": build_event_change_body(event, changed_groups),
-        "url": SITE_URL + "#" + urllib.parse.quote(event_id),
+        "url": url,
         "tag": event_id,
         "actions": actions,
         "doc_urls": doc_urls,
