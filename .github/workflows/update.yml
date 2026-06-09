@@ -13,6 +13,9 @@ jobs:
       contents: write
 
     steps:
+      - name: Install git
+        run: apt-get update -qq && apt-get install -y --no-install-recommends git
+
       - uses: actions/checkout@v5
 
       - run: pip install --quiet requests
