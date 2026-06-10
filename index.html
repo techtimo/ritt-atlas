@@ -95,11 +95,8 @@
 
 <div id="burger-backdrop"></div>
 <div id="burger-drawer">
-  <label id="vorrat-toggle">
-    <input type="checkbox" id="show-vorrat"> Zeige Rittvorrat
-  </label>
-  <hr class="burger-divider">
   <button class="burger-item" id="install-app-btn" hidden>📲 App installieren</button>
+  <button class="burger-item" data-modal="notifications-modal">🔔 Benachrichtigungen</button>
   <button class="burger-item" data-modal="settings-modal">⚙️ Einstellungen</button>
   <button class="burger-item" data-modal="info-modal">ℹ️ Info</button>
   <button class="burger-item" data-modal="datenschutz-modal">🔒 Datenschutz</button>
@@ -174,14 +171,50 @@
   </div>
 </div>
 
+<!-- notifications modal -->
+<div id="notifications-modal" class="std-modal">
+  <div class="std-modal-content">
+    <div class="std-modal-header">
+      <span>🔔 Benachrichtigungen</span>
+      <button class="std-modal-close" data-modal="notifications-modal">✕</button>
+    </div>
+    <div class="std-modal-body" id="notifications-modal-body">
+    </div>
+  </div>
+</div>
+
 <!-- settings modal -->
 <div id="settings-modal" class="std-modal">
   <div class="std-modal-content">
     <div class="std-modal-header">
-      <span>Einstellungen</span>
+      <span>⚙️ Einstellungen</span>
       <button class="std-modal-close" data-modal="settings-modal">✕</button>
     </div>
-    <div class="std-modal-body" id="settings-modal-body">
+    <div class="std-modal-body">
+      <div class="sn-row">
+        <div class="sn-row-text">
+          <span class="sn-label">Rittvorrat anzeigen</span>
+          <span class="sn-desc">Ältere, archivierte Ritte zusätzlich anzeigen</span>
+        </div>
+        <label class="sn-toggle">
+          <input type="checkbox" id="show-vorrat">
+          <span class="sn-toggle-track"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- rittvorrat info modal -->
+<div id="rittvorrat-modal" class="std-modal">
+  <div class="std-modal-content">
+    <div class="std-modal-header">
+      <span>Hinweis: Rittvorrat</span>
+      <button class="std-modal-close" data-modal="rittvorrat-modal">✕</button>
+    </div>
+    <div class="std-modal-body">
+      <p>Der <strong>Rittvorrat</strong> enthält ältere Einträge, bei denen die aufgeführten Ritte teilweise seit <strong>Jahren nicht mehr stattgefunden</strong> haben. Diese Daten sind möglicherweise veraltet und spiegeln nicht den aktuellen Stand wieder.</p>
+      <p>Vermisst du einen dieser Ritte? Vielleicht kannst du dabei helfen, einen Ritt wieder aufleben zu lassen. Möglicherweise kannst du dich mit dem Veranstalter in Verbindung setzen.</p>
     </div>
   </div>
 </div>

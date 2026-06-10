@@ -154,7 +154,7 @@ async function unsubscribePush() {
   try { localStorage.removeItem('vdd_push_sub'); localStorage.removeItem('vdd_push_prefs'); localStorage.removeItem('vdd_pending_prefs'); } catch(_) {}
 }
 
-function buildSettingsHtml() {
+function buildNotificationsHtml() {
   const isSubscribed = !!localStorage.getItem('vdd_push_sub');
   const prefs = JSON.parse(localStorage.getItem('vdd_push_prefs') || '{"notify_new_events":true,"notify_all_changes":false}');
   // normalize legacy prefs that predate the three-way changes option
@@ -207,9 +207,9 @@ function buildSettingsHtml() {
 <span id="sn-sync-status"></span>`;
 }
 
-function wireSettingsModal() {
-  const body = document.getElementById('settings-modal-body');
-  function refresh() { body.innerHTML = buildSettingsHtml(); wireSettingsModal(); }
+function wireNotificationsModal() {
+  const body = document.getElementById('notifications-modal-body');
+  function refresh() { body.innerHTML = buildNotificationsHtml(); wireNotificationsModal(); }
 
   function savePref(key, value) {
     const p = JSON.parse(localStorage.getItem('vdd_push_prefs') || '{}');
@@ -262,10 +262,10 @@ const ALL_STATUSES = ['steht fest', 'vorläufig', 'abgesagt', 'vergangen'];
 let selectedStatuses = new Set();
 
 function getEventStatus(ev) {
-  const isPast = (ev.end_date || ev.start_date) < TODAY;
-  if (isPast) return 'vergangen';
   const s = (ev.status || '').toLowerCase();
   if (ev.rittvorrat || s.includes('abgesagt')) return 'abgesagt';
+  const isPast = (ev.end_date || ev.start_date) < TODAY;
+  if (isPast) return 'vergangen';
   if (s.includes('vorl')) return 'vorläufig';
   return 'steht fest';
 }
@@ -279,6 +279,7 @@ const map = new maplibregl.Map({
   style: navigator.onLine ? BASEMAP_STYLE : BLANK_STYLE,
   bounds: [[6.0259, 47.5733], [14.5152, 54.4286]],
   fitBoundsOptions: { padding: 25 },
+  maxBounds: [[3.5, 44], [17, 57]],
   attributionControl: { compact: true },
   pitchWithRotate: false,
   maxPitch: 0,
@@ -315,11 +316,11 @@ function setOfflineBanner(offline) {
 setOfflineBanner(!navigator.onLine);
 
 function markerPinName(ev) {
-  const isPast = (ev.end_date || ev.start_date) < TODAY;
-  if (isPast) return 'pin-grey';
   if (ev.rittvorrat) return 'pin-red';
   const s = (ev.status || '').toLowerCase();
   if (s.includes('abgesagt')) return 'pin-red';
+  const isPast = (ev.end_date || ev.start_date) < TODAY;
+  if (isPast) return 'pin-grey';
   if (s.includes('vorl'))    return 'pin-yellow';
   return 'pin-green';
 }
@@ -698,9 +699,9 @@ function updateLegend() {
   if (!bar) return;
   const cats = new Set();
   EVENTS.filter(eventVisible).forEach(d => {
+    if (d.rittvorrat || (d.status || '').toLowerCase().includes('abgesagt')) { cats.add('abgesagt'); return; }
     const isPast = (d.end_date || d.start_date) < TODAY;
     if (isPast) { cats.add('past'); return; }
-    if (d.rittvorrat || (d.status || '').toLowerCase().includes('abgesagt')) { cats.add('abgesagt'); return; }
     if ((d.status || '').toLowerCase().includes('vorl')) { cats.add('vorl'); return; }
     cats.add('fest');
   });
@@ -1190,17 +1191,7 @@ document.getElementById('show-vorrat').addEventListener('change', e => {
   showVorrat = e.target.checked;
   applyFilters();
   if (showVorrat) {
-    resetModalStar();
-    document.getElementById('popup-modal-title').textContent = 'Hinweis: Rittvorrat';
-    document.getElementById('popup-modal-body').innerHTML =
-      '<p style="margin:0 0 10px;line-height:1.5">Der <strong>Rittvorrat</strong> enthält ältere Einträge, ' +
-      'bei denen die aufgeführten Ritte teilweise seit <strong>Jahren nicht mehr stattgefunden</strong> haben. ' +
-      'Diese Daten sind möglicherweise veraltet und spiegeln nicht den aktuellen Stand wieder.</p>' +
-      '<p style="margin:0;line-height:1.5">Vermisst du einen dieser Ritte? ' +
-      'Vielleicht kannst du dabei helfen, einen Ritt wieder aufleben zu lassen. ' +
-      'Möglicherweise kannst du dich mit dem Veranstalter in Verbindung setzen.</p>';
-    document.getElementById('popup-modal-footer').innerHTML = '';
-    document.getElementById('popup-modal').classList.add('show');
+    document.getElementById('rittvorrat-modal').classList.add('show');
   }
 });
 
@@ -1368,9 +1359,9 @@ if ('serviceWorker' in navigator) {
     btn.addEventListener('click', () => {
       const modalId = btn.dataset.modal;
       closeDrawer();
-      if (modalId === 'settings-modal') {
-        document.getElementById('settings-modal-body').innerHTML = buildSettingsHtml();
-        wireSettingsModal();
+      if (modalId === 'notifications-modal') {
+        document.getElementById('notifications-modal-body').innerHTML = buildNotificationsHtml();
+        wireNotificationsModal();
       }
       document.getElementById(modalId).classList.add('show');
     });

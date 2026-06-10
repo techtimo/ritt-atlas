@@ -39,9 +39,9 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
   .maplibregl-popup.mobile-modal { display: flex; }
 
   /* bigger tap targets */
-  .tbl-doc { padding: 5px 10px; font-size: 12px; }
+  .tbl-doc { height: 28px; padding: 0 10px; font-size: 12px; }
   .fav-star svg { width: 20px; height: 20px; }
-  .tog { padding: 5px 10px; font-size: 12px; }
+  .tog { height: 28px; padding: 0 10px; font-size: 12px; }
 }
 
 /* ── search bar ── */
@@ -71,7 +71,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .mtbl tr.no-coords { opacity: .6; }
 .mtbl tr.row-active td { background: #ffe082 !important; }
 
-.tbl-doc { display: inline-block; padding: 3px 8px; background: #1565c0; color: #fff; border-radius: 3px; text-decoration: none; white-space: nowrap; }
+.tbl-doc { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; height: 20px; padding: 0 8px; background: #1565c0; color: #fff; border-radius: 3px; text-decoration: none; white-space: nowrap; }
 .tbl-doc:hover { background: #0d47a1; }
 .tbl-doc.updated::after { content: " *"; }
 button.tbl-doc-ics { border: none; font: inherit; cursor: pointer; }
@@ -123,10 +123,10 @@ button.popup-doc-ics { border: none; font: inherit; cursor: pointer; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 #region-select { padding: 3px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; max-width: 150px; }
 .toggle-row { display: flex; gap: 3px; flex-wrap: wrap; }
-.tog { padding: 2px 7px; border: 1px solid #ccc; border-radius: 3px; background: #fff; font-size: 11px; cursor: pointer; color: #555; }
+.tog { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; height: 20px; padding: 0 7px; border: 1px solid #ccc; border-radius: 3px; background: #fff; font-size: 11px; cursor: pointer; color: #555; }
 .tog:hover { background: #e8f0fe; border-color: #aaa; }
-.tog.active { background: #2ea3f2; color: #fff; border-color: #2ea3f2; }
-#btn-clear-filters { padding: 2px 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 11px; cursor: pointer; color: #666; margin-left: auto; display: none; }
+.tog.active { box-shadow: inset 0 -2px 0 0 #2ea3f2; }
+#btn-clear-filters { display: none; align-items: center; justify-content: center; box-sizing: border-box; height: 20px; padding: 0 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 11px; cursor: pointer; color: #666; margin-left: auto; }
 #btn-clear-filters:hover { background: #fee; color: #c00; border-color: #fcc; }
 
 /* ── legend bar ── */
@@ -141,7 +141,7 @@ button.popup-doc-ics { border: none; font: inherit; cursor: pointer; }
 #btn-locate:hover { background: #e8f0fe; }
 #btn-locate.active { background: #2ea3f2; color: #fff; border-color: #2ea3f2; }
 #btn-locate.active:hover { background: #d32f2f; border-color: #d32f2f; }
-#radius-slider { width: 100px; accent-color: #2ea3f2; cursor: pointer; }
+#radius-slider { width: 100px; accent-color: #1565c0; cursor: pointer; }
 #radius-label { font-size: 12px; color: #555; white-space: nowrap; min-width: 52px; }
 
 /* ── info modal ── */
@@ -206,10 +206,8 @@ button.popup-doc-ics { border: none; font: inherit; cursor: pointer; }
 /* ── burger drawer + backdrop ── */
 #burger-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 999; }
 #burger-backdrop.show { display: block; }
-#burger-drawer { position: fixed; top: 40px; left: 0; right: 0; background: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.18); z-index: 1000; border-radius: 0 0 14px 14px; padding: 0 16px; max-height: 0; overflow: hidden; transition: max-height .25s cubic-bezier(.4,0,.2,1), padding .25s cubic-bezier(.4,0,.2,1); }
-#burger-drawer.open { max-height: 400px; padding: 12px 16px; }
-#vorrat-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; padding: 6px 0; }
-#vorrat-toggle input { width: 16px; height: 16px; accent-color: #2ea3f2; cursor: pointer; }
+#burger-drawer { position: fixed; top: 0; bottom: 0; left: 0; width: 260px; max-width: 80vw; background: #fff; box-shadow: 4px 0 16px rgba(0,0,0,.18); z-index: 1000; padding: 16px; padding-top: 56px; overflow-y: auto; transform: translateX(-100%); transition: transform .25s cubic-bezier(.4,0,.2,1); }
+#burger-drawer.open { transform: translateX(0); }
 .burger-divider { border: none; border-top: 1px solid #eee; margin: 10px 0; }
 .burger-item { display: block; width: 100%; text-align: left; background: transparent; border: none; font-size: 14px; padding: 10px 4px; cursor: pointer; color: #333; border-radius: 4px; }
 .burger-item[hidden] { display: none; }
