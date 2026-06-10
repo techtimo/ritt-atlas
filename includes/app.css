@@ -64,7 +64,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .mtbl th.asc .sa::after { content: '▲'; opacity: 1; }
 .mtbl th.desc .sa::after { content: '▼'; opacity: 1; }
 .mtbl th.fr { z-index: 3; }
-.mtbl td { padding: 2px; border-right: 1px solid #f0f0f0; border-bottom: 1px solid #eee; vertical-align: top; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mtbl td { padding: 2px; border-right: 1px solid #f0f0f0; border-bottom: 1px solid #eee; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mtbl td.fr { position: sticky; left: 0; background: #fff; z-index: 1; box-shadow: 2px 0 4px -2px rgba(0,0,0,.15); }
 .mtbl tr { cursor: pointer; }
 .mtbl tr:hover td { background: #fff8e1 !important; }

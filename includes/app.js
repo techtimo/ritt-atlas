@@ -1480,8 +1480,8 @@ async function loadVddData() {
     if (info.commitSha) {
       document.getElementById('info-version').textContent = `${info.commitSha} (${timeAgo(info.commitDate)})`;
       const knownSha = localStorage.getItem('vdd_app_sha');
-      if (!knownSha) localStorage.setItem('vdd_app_sha', info.commitSha);
-      else if (knownSha !== info.commitSha) document.getElementById('update-banner').classList.add('show');
+      if (knownSha && knownSha !== info.commitSha) document.getElementById('update-banner').classList.add('show');
+      localStorage.setItem('vdd_app_sha', info.commitSha);
     }
   }
 
