@@ -1399,20 +1399,19 @@ document.getElementById('info-modal').addEventListener('click', e => {
 
 // ── data caching ───────────────────────────────────────────────────────────────
 async function loadVddData() {
-  const KEY = 'vdd_d', TS = 'vdd_t', SA = 'vdd_sa';
-  const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+  const KEY = 'vdd_d', TS = 'vdd_t';
+  const MAX_AGE = 60 * 60 * 1000;
   const now = Date.now();
-  let cached = null, ts = 0, cachedScrapedAt = null;
+  let cached = null;
   try {
     cached = localStorage.getItem(KEY);
-    ts = parseInt(localStorage.getItem(TS) || '0', 10);
-    cachedScrapedAt = localStorage.getItem(SA);
+    const ts = parseInt(localStorage.getItem(TS) || '0', 10);
     const offline = !navigator.onLine;
     if (cached && (offline || (now - ts) < MAX_AGE)) {
-      return { data: JSON.parse(cached), fromCache: true, cacheTs: ts, cachedScrapedAt };
+      return JSON.parse(cached);
     }
   } catch(e) {
-    try { localStorage.removeItem(KEY); localStorage.removeItem(TS); localStorage.removeItem(SA); } catch(_) {}
+    try { localStorage.removeItem(KEY); localStorage.removeItem(TS); } catch(_) {}
     cached = null;
   }
   try {
@@ -1420,11 +1419,10 @@ async function loadVddData() {
     try {
       localStorage.setItem(KEY, JSON.stringify(data));
       localStorage.setItem(TS, String(now));
-      localStorage.setItem(SA, data.scraped_at || '');
     } catch(_) {}
-    return { data, fromCache: false, cacheTs: now, cachedScrapedAt: data.scraped_at || null };
+    return data;
   } catch(fetchErr) {
-    if (cached) return { data: JSON.parse(cached), fromCache: true, cacheTs: ts, cachedScrapedAt };
+    if (cached) return JSON.parse(cached);
     throw fetchErr;
   }
 }
@@ -1443,9 +1441,9 @@ async function loadVddData() {
     document.getElementById('search-clear').style.display = 'block';
   }
 
-  let _vd, fromCache, cacheTs, cachedScrapedAt;
+  let _vd;
   try {
-    ({ data: _vd, fromCache, cacheTs, cachedScrapedAt } = await loadVddData());
+    _vd = await loadVddData();
   } catch(e) {
     document.getElementById('grid').innerHTML =
       `<p style="padding:1.5rem;color:#c00">Daten konnten nicht geladen werden.<br>${e.message}</p>`;
@@ -1476,40 +1474,44 @@ async function loadVddData() {
     cell.appendChild(document.createTextNode(` (${fmtDateDe(lastChanged.wiki_touched)})`));
   }
 
-  fetch('https://api.github.com/repos/techtimo/vdd-rittatlas/actions/workflows/update.yml/runs?per_page=1')
-    .then(r => r.ok ? r.json() : null)
-    .then(d => {
-      const run = d?.workflow_runs?.[0];
-      if (!run) return;
-      document.getElementById('info-geprueft').textContent = timeAgo(run.updated_at);
-      if (fromCache && new Date(run.updated_at).getTime() > cacheTs) {
-        fetch('data.min.json', { cache: 'no-store' })
-          .then(r => r.json())
-          .then(fresh => {
-            if (fresh.scraped_at === cachedScrapedAt) return;
-            try {
-              localStorage.setItem('vdd_d', JSON.stringify(fresh));
-              localStorage.setItem('vdd_t', String(Date.now()));
-              localStorage.setItem('vdd_sa', fresh.scraped_at || '');
-            } catch(_) {}
-          })
-          .catch(() => {});
-      }
-    })
-    .catch(() => {});
-
-  fetch('https://api.github.com/repos/techtimo/vdd-rittatlas/commits?per_page=1')
-    .then(r => r.ok ? r.json() : null)
-    .then(d => {
-      const commit = d?.[0];
-      if (!commit?.sha) return;
-      const sha = commit.sha.slice(0, 7);
-      document.getElementById('info-version').textContent = `${sha} (${timeAgo(commit.commit.committer.date)})`;
+  // ── GitHub status info (last checked / app version), throttled to once per hour ──
+  function renderGhInfo(info) {
+    if (info.runUpdatedAt) document.getElementById('info-geprueft').textContent = timeAgo(info.runUpdatedAt);
+    if (info.commitSha) {
+      document.getElementById('info-version').textContent = `${info.commitSha} (${timeAgo(info.commitDate)})`;
       const knownSha = localStorage.getItem('vdd_app_sha');
-      if (!knownSha) { localStorage.setItem('vdd_app_sha', sha); return; }
-      if (knownSha !== sha) document.getElementById('update-banner').classList.add('show');
-    })
-    .catch(() => {});
+      if (!knownSha) localStorage.setItem('vdd_app_sha', info.commitSha);
+      else if (knownSha !== info.commitSha) document.getElementById('update-banner').classList.add('show');
+    }
+  }
+
+  const GH_TTL = 60 * 60 * 1000;
+  let ghInfo = null;
+  try { ghInfo = JSON.parse(localStorage.getItem('vdd_gh_info')); } catch(_) {}
+
+  if (ghInfo && (Date.now() - ghInfo.checkedAt) < GH_TTL) {
+    renderGhInfo(ghInfo);
+  } else {
+    Promise.all([
+      fetch('https://api.github.com/repos/techtimo/vdd-rittatlas/actions/workflows/update.yml/runs?per_page=1').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('https://api.github.com/repos/techtimo/vdd-rittatlas/commits?per_page=1').then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([runsData, commitsData]) => {
+      const run = runsData?.workflow_runs?.[0];
+      const commit = commitsData?.[0];
+      if (!run && !commit) {
+        if (ghInfo) renderGhInfo(ghInfo);
+        return;
+      }
+      const info = {
+        checkedAt: Date.now(),
+        runUpdatedAt: run?.updated_at || ghInfo?.runUpdatedAt || null,
+        commitSha: commit?.sha ? commit.sha.slice(0, 7) : ghInfo?.commitSha || null,
+        commitDate: commit?.commit?.committer?.date || ghInfo?.commitDate || null,
+      };
+      try { localStorage.setItem('vdd_gh_info', JSON.stringify(info)); } catch(_) {}
+      renderGhInfo(info);
+    });
+  }
 
   document.getElementById('update-reload').addEventListener('click', () => location.reload());
 
