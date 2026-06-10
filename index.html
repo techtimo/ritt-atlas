@@ -39,6 +39,7 @@
         </div>
         <div id="loc-controls">
           <button id="btn-locate">&#x1F4CD; Standort</button>
+          <label for="radius-slider" class="sr-only">Umkreis in km</label>
           <input id="radius-slider" type="range" min="50" max="500" step="50" value="250">
           <span id="radius-label">250 km</span>
         </div>
@@ -46,7 +47,7 @@
       </div>
       <div id="filter-bar">
         <div class="fbar-group">
-          <span class="fbar-label">Region</span>
+          <label class="fbar-label" for="region-select">Region</label>
           <select id="region-select"><option value="">Alle</option></select>
         </div>
         <div class="fbar-group">
@@ -98,6 +99,7 @@
     <input type="checkbox" id="show-vorrat"> Zeige Rittvorrat
   </label>
   <hr class="burger-divider">
+  <button class="burger-item" id="install-app-btn" hidden>📲 App installieren</button>
   <button class="burger-item" data-modal="settings-modal">⚙️ Einstellungen</button>
   <button class="burger-item" data-modal="info-modal">ℹ️ Info</button>
   <button class="burger-item" data-modal="datenschutz-modal">🔒 Datenschutz</button>

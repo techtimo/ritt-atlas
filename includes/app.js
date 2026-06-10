@@ -287,7 +287,19 @@ const map = new maplibregl.Map({
 map.touchZoomRotate.disableRotation();
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 map.on('click', e => { if (!map.queryRenderedFeatures(e.point, { layers: ['events-unclustered'] }).length && openPopup) openPopup.remove(); });
+let _moveRAF = null;
+map.on('move', () => {
+  if (_programmaticMapMove || _moveRAF) return;
+  _moveRAF = requestAnimationFrame(() => {
+    _moveRAF = null;
+    mapBounds = map.getBounds();
+    _filterFromMapMove = true;
+    applyFilters();
+    _filterFromMapMove = false;
+  });
+});
 map.on('moveend', () => {
+  if (_moveRAF) { cancelAnimationFrame(_moveRAF); _moveRAF = null; }
   if (_programmaticMapMove) { _programmaticMapMove = false; return; }
   mapBounds = map.getBounds();
   _filterFromMapMove = true;
@@ -596,7 +608,7 @@ function popupDocsHtml(ev) {
     pdfLink(ev.announcement_pdf, 'Ausschreibung', ev.announcement_updated),
     pdfLink(ev.results_pdf,      'Ergebnisse',    false),
     pdfLink(ev.registration_pdf, 'Nennung',        false),
-    ev.start_date ? `<a class="popup-doc popup-doc-ics" href="javascript:void(0)" data-ics-id="${escHtml(ev.id)}">Kalender</a>` : '',
+    ev.start_date ? `<button type="button" class="popup-doc popup-doc-ics" data-ics-id="${escHtml(ev.id)}">Kalender</button>` : '',
   ].filter(Boolean).join('');
 }
 
@@ -742,7 +754,7 @@ function fmtPdf(pdfField, updatedField) {
 function fmtIcs(cell) {
   const ev = cell.getRow().getData();
   if (!ev.start_date) return '';
-  return `<a class="tbl-doc tbl-doc-ics" href="javascript:void(0)" onclick="event.stopPropagation();icsDownload(EVENTS.find(e=>e.id==='${ev.id}'))">ICS</a>`;
+  return `<button type="button" class="tbl-doc tbl-doc-ics" onclick="event.stopPropagation();icsDownload(EVENTS.find(e=>e.id==='${ev.id}'))">ICS</button>`;
 }
 
 function fmtLink(cell) {
@@ -1266,6 +1278,7 @@ document.getElementById('btn-locate').addEventListener('click', () => {
     radiusKm = +document.getElementById('radius-slider').value || 250;
     showRadiusCircle(userLat, userLon, radiusKm);
     map.resize();
+    mapBounds = null;
     _programmaticMapMove = true;
     map.fitBounds(radiusBounds(userLat, userLon, radiusKm), { padding: 25 });
     btn.textContent = '✕ Löschen';
@@ -1279,16 +1292,56 @@ document.getElementById('btn-locate').addEventListener('click', () => {
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 });
 
+{
+  const slider = document.getElementById('radius-slider');
+  const stored = +localStorage.getItem('vdd_radius_km');
+  radiusKm = stored || +slider.value || 250;
+  slider.value = radiusKm;
+  document.getElementById('radius-label').textContent = radiusKm + ' km';
+}
+
 document.getElementById('radius-slider').addEventListener('input', e => {
   radiusKm = +e.target.value;
   document.getElementById('radius-label').textContent = radiusKm + ' km';
+  try { localStorage.setItem('vdd_radius_km', String(radiusKm)); } catch(_) {}
   if (userLat !== null) {
     showRadiusCircle(userLat, userLon, radiusKm);
+    mapBounds = null;
     _programmaticMapMove = true;
     map.fitBounds(radiusBounds(userLat, userLon, radiusKm), { padding: 25 });
     applyFilters();
   }
 });
+
+// ── service worker registration (required for PWA installability) ─────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// ── PWA install prompt ────────────────────────────────────────────────────────
+(function () {
+  const installBtn = document.getElementById('install-app-btn');
+  let deferredPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.hidden = false;
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    installBtn.hidden = true;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    installBtn.hidden = true;
+  });
+})();
 
 // ── burger menu ────────────────────────────────────────────────────────────────
 (function () {
