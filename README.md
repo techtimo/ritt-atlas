@@ -13,14 +13,14 @@ Die VDD veröffentlicht ihre Veranstaltungsdaten im öffentlichen MediaWiki auf 
 ## Wie es funktioniert
 
 ```
-vdd_scrape.py  →  data.json + data.min.json  →  index.html
-                                              →  notify_diff.py  →  Push-Server  →  Browser
+scraper/vdd_scrape.py  →  data.json + data.min.json  →  index.html
+                                                      →  scraper/notify_diff.py  →  Push-Server  →  Browser
 ```
 
-1. **`vdd_scrape.py`** fragt die SMW-API des VDD-Wikis ab, geocodiert Orte ohne Wiki-Koordinaten und schreibt zwei Dateien: `data.json` (pretty-printed, für lesbare Git-Diffs) und `data.min.json` (minifiziert, für den Browser).
+1. **`scraper/vdd_scrape.py`** fragt die SMW-API des VDD-Wikis ab, geocodiert Orte ohne Wiki-Koordinaten und schreibt zwei Dateien: `data.json` (pretty-printed, für lesbare Git-Diffs) und `data.min.json` (minifiziert, für den Browser).
 2. Beide Dateien werden im Repo gespeichert und per GitHub Actions stündlich aktualisiert.
 3. **`index.html`** lädt `data.min.json` per `fetch()` und baut daraus Karte (MapLibre) und Tabelle (Tabulator).
-4. **`notify_diff.py`** vergleicht alten und neuen Datenstand und schickt Web-Push-Benachrichtigungen an einen Go-Server auf Fly.io, der die Abonnenten informiert.
+4. **`scraper/notify_diff.py`** vergleicht alten und neuen Datenstand und schickt Web-Push-Benachrichtigungen an einen Go-Server auf Fly.io, der die Abonnenten informiert.
 
 ## Push-Benachrichtigungen
 
@@ -64,13 +64,13 @@ go test ./...
 ## Lokal ausführen
 
 ```bash
-pip install -r requirements.txt
-python vdd_scrape.py   # aktualisiert data.json und data.min.json
+pip install -r scraper/requirements.txt
+python scraper/vdd_scrape.py   # aktualisiert data.json und data.min.json
 
-npx serve .            # lokaler HTTP-Server (fetch() benötigt HTTP, nicht file://)
+python -m http.server          # lokaler HTTP-Server (fetch() benötigt HTTP, nicht file://)
 ```
 
-Dann [http://localhost:3000](http://localhost:3000) im Browser öffnen.
+Dann [http://localhost:8000](http://localhost:8000) im Browser öffnen.
 
 Mit `Ctrl+C` im Terminal beenden.
 

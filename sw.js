@@ -8,8 +8,8 @@ self.addEventListener('push', event => {
   event.waitUntil(
     self.registration.showNotification(payload.title || 'VDD Rittatlas', {
       body: payload.body || '',
-      icon: '/favicon.svg',
-      badge: '/favicon.svg',
+      icon: `${self.registration.scope}includes/favicon.svg`,
+      badge: `${self.registration.scope}includes/favicon.svg`,
       tag: payload.tag || payload.event_id || undefined,
       data: { url: payload.url || '/', doc_urls: payload.doc_urls || {} },
       actions: payload.actions || [],

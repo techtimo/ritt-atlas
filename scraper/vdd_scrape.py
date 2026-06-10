@@ -1,3 +1,4 @@
+import os
 import re
 import requests
 import json
@@ -10,8 +11,9 @@ NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 NOMINATIM_HEADERS = {"User-Agent": "VDD-Distanzwettbewerbe-Scraper/1.0 (giese.timo@gmail.com)"}
 
 API_URL = "https://vdd-aktuell.de/mediawiki/api.php"
-DATA_PATH     = "data.json"
-DATA_MIN_PATH = "data.min.json"
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_PATH     = os.path.join(ROOT_DIR, "data.json")
+DATA_MIN_PATH = os.path.join(ROOT_DIR, "data.min.json")
 
 PROPS = (
     "|?Startdatum#ISO"

@@ -18,12 +18,12 @@ jobs:
 
       - uses: actions/checkout@v5
 
-      - run: pip install --quiet requests
+      - run: pip install --quiet -r scraper/requirements.txt
 
       - name: Check for wiki changes
         id: check
         run: |
-          result=$(python vdd_scrape.py --check-only)
+          result=$(python scraper/vdd_scrape.py --check-only)
           echo "changed=$result" >> "$GITHUB_OUTPUT"
 
       - name: Snapshot old data
@@ -38,7 +38,7 @@ jobs:
 
       - name: Run scraper
         if: steps.check.outputs.changed == 'true'
-        run: python vdd_scrape.py
+        run: python scraper/vdd_scrape.py
 
       - name: Commit & push
         if: steps.check.outputs.changed == 'true'
@@ -74,4 +74,4 @@ jobs:
           NOTIFY_TOKEN: ${{ secrets.NOTIFY_TOKEN }}
           PUSH_SERVER_URL: ${{ secrets.PUSH_SERVER_URL }}
         run: |
-          python notify_diff.py --old old.min.json --new data.min.json --server "$PUSH_SERVER_URL"
+          python scraper/notify_diff.py --old old.min.json --new data.min.json --server "$PUSH_SERVER_URL"

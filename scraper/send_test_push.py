@@ -18,9 +18,10 @@ from notify_diff import (
 )
 
 PUSH_SERVER_URL = "https://vdd-rittatlas-server.fly.dev"
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def load_events(path="data.json"):
+def load_events(path=os.path.join(ROOT_DIR, "data.json")):
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     return data["events"] if isinstance(data, dict) else data

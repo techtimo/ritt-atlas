@@ -2,6 +2,7 @@
   "name": "VDD Rittatlas",
   "short_name": "Rittatlas",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1565c0",
