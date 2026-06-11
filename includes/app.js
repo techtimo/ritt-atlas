@@ -1531,7 +1531,10 @@ async function loadVddData() {
 
   await new Promise(resolve => {
     if (map.isStyleLoaded()) { resolve(); return; }
-    map.once('style.load', resolve);
+    const check = () => {
+      if (map.isStyleLoaded()) { map.off('styledata', check); resolve(); }
+    };
+    map.on('styledata', check);
   });
   _currentGeoJSON = eventsToGeoJSON(EVENTS);
   await _addEventLayersToMap(_currentGeoJSON).catch(err => console.error('addEventLayers failed:', err));
